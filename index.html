@@ -407,6 +407,9 @@ function cleanFood(x){
 const ACCESS_KEY = "contour-access-v2", ITER = 210000;
 let access = "checking", isOwner = false, accessDb = null, gateDoc = null, groupKey = null;
 let authRole = "member";
+// An invite link carries the access code after the # so nobody has to type it.
+let inviteCode = (() => { try { const m = /^#([A-Za-z0-9]{4}(?:-[A-Za-z0-9]{4}){1,2})$/.exec(location.hash); return m ? m[1].toUpperCase() : ""; } catch(e){ return ""; } })();
+const clearInvite = () => { inviteCode = ""; try { history.replaceState(null, "", location.pathname + location.search); } catch(e){} };
 let ownerCodes = [], ownerK = null, ownerSalt = null, ownerWraps = [], authTab = null, pendingName = "", fails = 0, lockUntil = 0;
 let communityRaw = []; const foodCache = new Map();
 const subtle = window.crypto && window.crypto.subtle;
@@ -461,7 +464,8 @@ async function initAccess(){
   gateDoc = d;
   const token = getToken(); let k = null;
   if (token) try { k = await tryUnwrap(ub64(token)); } catch(e){}
-  if (k){ groupKey = k; access = "open"; refreshCommunity(); }
+  if (!k && inviteCode && !state.demo) try { const dk = await deriveKey(inviteCode, d.salt); k = await tryUnwrap(dk); if (k){ try { localStorage.setItem(ACCESS_KEY, b64(dk)); } catch(e){} } } catch(e){}
+  if (k){ groupKey = k; access = "open"; refreshCommunity(); if (inviteCode) clearInvite(); }
   else { access = "locked"; if (token) try { localStorage.removeItem(ACCESS_KEY); } catch(e){} }
   if (!db) setSync("Saved on this device only");
   render();
@@ -514,7 +518,7 @@ function viewGate(){
     <form data-form="auth" style="display:flex;flex-direction:column;gap:12px">
       ${up && subtle ? `<div class="seg" role="group" aria-label="Account type"><button type="button" data-act="authrole" data-v="member" aria-pressed="${authRole==="member"}">I track my own fitness</button><button type="button" data-act="authrole" data-v="trainer" aria-pressed="${authRole==="trainer"}">I am a trainer</button></div>` : ""}
       ${up ? `<label class="f">Your name<input id="a-name" type="text" maxlength="30" required autocomplete="given-name" style="font-size:16px"></label>` : ""}
-      <label class="f">Access code<input id="a-code" type="text" class="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="XXXX-XXXX-XXXX" required style="text-transform:uppercase"></label>
+      <label class="f">Access code<input id="a-code" type="text" class="code" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="20" placeholder="XXXX-XXXX-XXXX" required value="${esc(inviteCode)}" style="text-transform:uppercase">${inviteCode ? `<small>Filled in from your invite link.</small>` : ""}</label>
       ${up ? `<label class="check"><input type="checkbox" id="a-age" required><span>I am 18 or older.</span></label>` : ""}
       <div class="err" id="a-err"></div><button class="btn" id="a-go">${up ? "Create account" : "Log in"}</button></form>
     <p class="sub">${accessDb ? "Your Claude sign-in is your identity here, so there is no password to remember. The access code proves you were invited and unlocks the shared data." : "Your profile and logs will be kept in this browser on this device. The access code proves you were invited."}</p></section>`;
@@ -1270,6 +1274,7 @@ const forms = {
       return err.textContent = "That code is not valid. Check it, or ask for a new one.";
     }
     fails = 0; try { localStorage.setItem(ACCESS_KEY, b64(dk)); } catch(e){}
+    if (inviteCode) clearInvite();
     groupKey = k; access = "open"; pendingName = name; render(); refreshCommunity();
     if (state.demo){ if (up && authRole === "trainer") await becomeTrainer(name); else profileSheet(); }
   },
