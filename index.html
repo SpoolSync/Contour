@@ -304,6 +304,19 @@ nav.tabs [data-tab="progress"]{display:none}
 .example .extag{position:absolute;top:10px;right:12px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .skel{background:linear-gradient(90deg,var(--sunk),var(--surface),var(--sunk));background-size:200% 100%;animation:sk 1.2s infinite;border-radius:var(--r)}
 @keyframes sk{to{background-position:-200% 0}}
+.scanbox{position:relative;border-radius:16px;overflow:hidden;background:#000;aspect-ratio:4/3}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanframe{position:absolute;inset:20% 8%;border:3px solid rgba(255,255,255,.9);border-radius:12px;box-shadow:0 0 0 999px rgba(0,0,0,.35)}
+.scanframe i{position:absolute;left:6%;right:6%;top:50%;height:2px;background:var(--accent);animation:scanline 1.6s ease-in-out infinite alternate}
+@keyframes scanline{from{top:15%}to{top:85%}}
+.torch{position:absolute;right:10px;bottom:10px;border:0;border-radius:999px;padding:8px 12px;background:rgba(255,255,255,.9);font-weight:600;font-size:13px}
+.ingr summary{cursor:pointer;font-weight:600}
+.ingr p{margin:8px 0 4px;font-size:13.5px;line-height:1.5}
+.ingr b{color:var(--high)}
+.draftnote{margin:0;font-size:12.5px;color:var(--muted);background:var(--sunk);border-radius:10px;padding:8px 10px}
+.draftnote .linkbtn{font-size:12.5px;color:var(--scan)}
+.nfadd{font-size:12.5px;color:var(--muted);text-align:center;margin-top:6px}
+.nfadd button{color:var(--scan);font-size:12.5px}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -443,7 +456,11 @@ function normalise(s){
 const CLOUD = !!(window.firebase && window.PIXORA_CLOUD && !(window.claude && window.claude.use));
 let localKey = LOCAL_KEY;
 let state = null;
-if (!CLOUD) try { state = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
+// Keep a copy of every saved profile before a new app version runs, and ask the browser not to clear app storage.
+const APP_BUILD = "2026-11-21b";
+try { if (localStorage.getItem("contour-build") !== APP_BUILD){ for (const k of Object.keys(localStorage)) if (k.startsWith(LOCAL_KEY) && !k.endsWith(":bak") && !k.endsWith(":adopted")){ const v = localStorage.getItem(k); if (v && v.length > 20) localStorage.setItem(k + ":bak", v); } localStorage.setItem("contour-build", APP_BUILD); } } catch(e){}
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch(e){}
+if (!CLOUD) try { state = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))) || normalise(JSON.parse(localStorage.getItem(LOCAL_KEY + ":bak"))); } catch(e){}
 if (!state) state = demoState();
 
 let cloudDb = null, myId = null, community = [];
@@ -1189,6 +1206,7 @@ async function cloudEnter(u){
   if (!(await vaultReady(u))) return;
   localKey = LOCAL_KEY + ":" + u.uid;
   let local = null; try { local = normalise(JSON.parse(localStorage.getItem(localKey))); } catch(e){}
+  if (!local) try { local = normalise(JSON.parse(localStorage.getItem(localKey + ":bak"))); if (local) localStorage.setItem(localKey, JSON.stringify(local)); } catch(e){}
   state = local || demoState(); access = "open"; acctLoading = !local; render();
   let remote = null, reached = false; if (!vforce) try { remote = await Promise.race([cloudLoad(u.uid), late(9000)]); reached = true; } catch(e){}
   if (cuser !== u) return;
@@ -1211,7 +1229,7 @@ async function cloudEnter(u){
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
     if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).catch(() => null).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  myId = u.uid; cloudFoods(); cloudTrainerInit(); cloudTexInit(true); dashKick(2000); vforce = false;
+  myId = u.uid; cloudFoods(); cloudProducts(); cloudTrainerInit(); cloudTexInit(true); dashKick(2000); vforce = false;
   cloudShareRefresh().catch(() => {});
 }
 /* A member's trainer holds a sealed copy of the data key. Re-seal it when the key changed or the grant predates encryption. */
@@ -1245,7 +1263,7 @@ function dashKick(ms){
   }, ms);
 }
 function cloudLeave(){
-  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); if (prodUnsub) prodUnsub(); mainUnsub = grantsUnsub = foodsUnsub = prodUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
   clearTimeout(pushTimer); acctLoading = false; ob = null; obForce = false; tourEnd(); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
 function cloudLogout(){ closeSheet(); authTab = "login"; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
@@ -1284,7 +1302,7 @@ const AUTH_COPY = {"auth/email-already-in-use":"An account already uses that ema
 function cloudGate(){
   if (access === "vault") return vaultGate();
   if (access === "checking") return `<section class="card"><h1>Opening Contour</h1><p class="sub">One moment.</p></section>`;
-  let known = false; try { known = Object.keys(localStorage).some(k => k.startsWith(LOCAL_KEY + ":") && k !== LOCAL_KEY + ":adopted"); } catch(e){}
+  let known = false; try { known = Object.keys(localStorage).some(k => k.startsWith(LOCAL_KEY + ":") && k !== LOCAL_KEY + ":adopted" && !k.endsWith(":bak")); } catch(e){}
   if (!authTab) authTab = known ? "login" : "signup";
   const up = authTab === "signup";
   return `<div><h1>${up ? "Create your account" : "Welcome back"}</h1><p class="sub">${up ? "One Pixora account keeps your data safe in the cloud and on every device you use." : "Log in to pick up where you left off."}</p></div>
@@ -1403,6 +1421,137 @@ function readHealth(){
   const notes = (($("#p-hnotes") || {}).value || "").trim().slice(0, 160), share = !!($("#p-hshare") && $("#p-hshare").checked);
   return a.length || c.length || notes ? {allergies:a, conditions:c, notes, share} : undefined;
 }
+/* ---------- barcode scanner: native detector when the phone has one, ZXing (WebAssembly) otherwise, plus a still-photo fallback ---------- */
+let scanStream = null, scanLoop = 0, scanBusy = false, zxReady = null, nativeDet = null;
+const ZX_FORMATS = ["EAN13", "EAN8", "UPCA", "UPCE", "Code128"];
+function zxing(){
+  if (!zxReady) zxReady = loadScript("vendor/zxing/zxing-reader.js").then(() => { window.ZXingWASM.prepareZXingModule({overrides:{locateFile:(p, pre) => p.endsWith(".wasm") ? new URL("vendor/zxing/zxing_reader.wasm", location.href).href : pre + p}, fireImmediately:true}); return window.ZXingWASM; }).catch(e => { zxReady = null; throw e; });
+  return zxReady;
+}
+async function nativeDetector(){
+  if (nativeDet !== null) return nativeDet; nativeDet = false;
+  try { if ("BarcodeDetector" in window){ const f = await window.BarcodeDetector.getSupportedFormats(); if (f.includes("ean_13")) nativeDet = new window.BarcodeDetector({formats:["ean_13","ean_8","upc_a","upc_e","code_128"].filter(x => f.includes(x))}); } } catch(e){}
+  return nativeDet;
+}
+// EAN/UPC check digit, so a blurry misread never opens the wrong product.
+function codeOk(c){ c = String(c || ""); if (!/^\d{6,14}$/.test(c)) return false; if (![8, 12, 13, 14].includes(c.length)) return c.length >= 6; let s = 0; const d = c.split("").map(Number), chk = d.pop(); d.reverse().forEach((v, i) => s += v*(i % 2 ? 1 : 3)); return (10 - s % 10) % 10 === chk; }
+let zoomTurn = 0;
+// Live frames alternate between a wide band and a 2x zoom of the centre, so both close and far barcodes read.
+async function decodeImage(src, still){
+  const nd = await nativeDetector();
+  if (nd){ try { const r = await nd.detect(src); const hit = r.find(x => codeOk(x.rawValue)); if (hit) return hit.rawValue; } catch(e){} }
+  const Z = await zxing(), opts = {formats:ZX_FORMATS, tryHarder:true, tryRotate:true, tryInvert:false, tryDownscale:true, maxNumberOfSymbols:1};
+  const pick = r => { const hit = r.find(x => x.isValid && codeOk(x.text)); return hit ? hit.text : null; };
+  let el = src;
+  if (src instanceof Blob){ if (!still) return pick(await Z.readBarcodes(src, opts)); const first = pick(await Z.readBarcodes(src, opts)); if (first) return first; el = await createImageBitmap(src); }
+  const w = el.videoWidth || el.width, h = el.videoHeight || el.height; if (!w || !h) return null;
+  const crops = still ? [[0.2, 0.2, 0.6, 0.6, 2], [0.3, 0.3, 0.4, 0.4, 3], [0, 0.15, 1, 0.7, 1]] : [(zoomTurn++ % 2) ? [0.25, 0.3, 0.5, 0.4, 2] : [0, 0.2, 1, 0.6, 1]];
+  for (const [fx, fy, fw, fh, up] of crops){
+    const sw = w*fw, sh = h*fh, cw = Math.min(1600, Math.round(sw*up)), ch = Math.round(sh*cw/sw), cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
+    const cx = cv.getContext("2d", {willReadFrequently:true}); cx.imageSmoothingQuality = "high"; cx.drawImage(el, w*fx, h*fy, sw, sh, 0, 0, cw, ch);
+    const t = pick(await Z.readBarcodes(cx.getImageData(0, 0, cw, ch), opts)); if (t) return t;
+  }
+  return null;
+}
+async function openScanner(target){
+  scanFor = target; const meal = target === "meal";
+  openSheet(`${head("Scan a barcode")}<p class="sub">Hold the barcode flat, about a hand's length away, inside the box. It reads by itself.</p>
+    <div class="scanbox"><video id="scan-v" playsinline muted autoplay></video><div class="scanframe" aria-hidden="true"><i></i></div><button type="button" class="torch" id="scan-torch" data-act="scan-torch" hidden aria-label="Turn the light on">Light</button></div>
+    <div class="err" id="qr-msg" style="color:var(--muted)" aria-live="polite">Starting the camera…</div>
+    <label class="btn alt filebtn">Take a photo of the barcode instead<input type="file" id="scan-photo" accept="image/*" capture="environment" aria-label="Photo of a barcode"></label>
+    <form data-form="${meal ? "mealcode" : "chk"}" class="row"><label class="f" style="flex:1">Or type the number<input id="${meal ? "meal-code" : "chk-code2"}" type="text" inputmode="numeric" maxlength="14" autocomplete="off"></label><button class="btn alt" style="width:auto;align-self:flex-end">Look up</button></form>`);
+  const msg = t => { const m = $("#qr-msg"); if (m) m.textContent = t; };
+  zxing().catch(() => {}); // start loading the decoder while the camera warms up
+  try {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw {code:"nocam"};
+    const s = await navigator.mediaDevices.getUserMedia({audio:false, video:{facingMode:{ideal:"environment"}, width:{ideal:1920}, height:{ideal:1080}}});
+    const v = $("#scan-v"); if (!v){ s.getTracks().forEach(t => t.stop()); return; }
+    scanStream = s; v.srcObject = s; await v.play().catch(() => {});
+    const tr = s.getVideoTracks()[0], cap = tr && tr.getCapabilities ? tr.getCapabilities() : {};
+    try { if (cap.focusMode && cap.focusMode.includes("continuous")) await tr.applyConstraints({advanced:[{focusMode:"continuous"}]}); } catch(e){}
+    if (cap.torch) { const b = $("#scan-torch"); if (b) b.hidden = false; }
+    msg("Looking for a barcode…");
+    const run = ++scanLoop; let lastTry = 0;
+    const tick = async () => {
+      if (run !== scanLoop || !scanStream) return;
+      const now = performance.now();
+      if (!scanBusy && now - lastTry > 140 && v.readyState >= 2){ scanBusy = true; lastTry = now;
+        try { const c = await decodeImage(v); if (c && run === scanLoop){ try { navigator.vibrate && navigator.vibrate(80); } catch(x){} scanBusy = false; return gotCode(c); } } catch(e){}
+        scanBusy = false; }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+    setTimeout(() => { if (run === scanLoop && scanStream) msg("Still looking. Move a little closer or further, avoid glare, or take a photo instead."); }, 9000);
+  } catch(e){ stopScanner(); msg(e && e.name === "NotAllowedError" ? "Camera access is blocked. Allow it in your browser settings, or take a photo or type the number." : "The camera could not start here. Take a photo of the barcode or type the number."); }
+}
+async function scanPhoto(file){
+  const m = $("#qr-msg"); if (m) m.textContent = "Reading the photo…";
+  try { const c = await decodeImage(file, true); if (c) return gotCode(c); if (m) m.textContent = "No barcode found in that photo. Fill the frame with the barcode and keep it sharp, or type the number."; }
+  catch(e){ if (m) m.textContent = "The photo could not be read. Type the number instead."; }
+}
+function stopScanner(){ scanLoop++; scanBusy = false; const s = scanStream; scanStream = null; if (s) s.getTracks().forEach(t => { try { t.stop(); } catch(e){} }); }
+/* ---------- shared product catalog: every product anyone scans or adds, with ingredients, for all users ---------- */
+let products = new Map(), prodUnsub = null, chkNF = "", nfCode = "";
+const numOrNull = v => { v = +v; return v === v && v >= 0 && v < 100000 ? v : null; };
+function levelsOf(n, given){ const band = (v, lo, hi) => v == null ? null : v <= lo ? "low" : v > hi ? "high" : "moderate", g = given || {}, ok = x => ["low","moderate","high"].includes(x) ? x : null;
+  return {sugars:ok(g.sugars) || band(n.sugars, 5, 22.5), sat:ok(g.sat) || band(n.sat, 1.5, 5), salt:ok(g.salt) || band(n.salt, 0.3, 1.5), fat:ok(g.fat) || band(n.f, 3, 17.5)}; }
+function prodFromDoc(x){
+  if (!x || typeof x.code !== "string" || !/^\d{6,14}$/.test(x.code) || typeof x.name !== "string") return null; const N = x.nut || {}, L = a => (Array.isArray(a) ? a : []).map(String).slice(0, 20);
+  const nut = {kcal:numOrNull(N.kcal), p:numOrNull(N.p), c:numOrNull(N.c), f:numOrNull(N.f), sugars:numOrNull(N.sugars), sat:numOrNull(N.sat), salt:numOrNull(N.salt), fiber:numOrNull(N.fiber)};
+  return {code:x.code, name:x.name.slice(0, 80), brand:String(x.brand || "").slice(0, 60), nut, levels:levelsOf(nut, x.levels), grade:/^[a-e]$/.test(x.grade || "") ? x.grade : null, nova:[1,2,3,4].includes(+x.nova) ? +x.nova : null,
+    additives:Math.max(0, Math.min(99, +x.additives || 0)), allergens:L(x.allergens), traces:L(x.traces), ingredients:String(x.ingredients || "").slice(0, 5000), serving:String(x.serving || "").slice(0, 40), servingG:Math.max(1, Math.min(2000, Math.round(+x.servingG || 100))), src:x.src === "user" ? "user" : "off", by:String(x.by || ""), at:+x.at || 0};
+}
+function prodToDoc(pr, src){
+  const n = pr.nut, z = v => v == null ? null : Math.round(v*100)/100;
+  return {code:pr.code, name:pr.name.slice(0, 80), brand:(pr.brand || "").slice(0, 60), nameLower:((pr.brand ? pr.brand + " " : "") + pr.name).toLowerCase().slice(0, 140), serving:(pr.serving || "").slice(0, 40), servingG:pr.servingG || 100,
+    nut:{kcal:z(n.kcal), p:z(n.p), c:z(n.c), f:z(n.f), sugars:z(n.sugars), sat:z(n.sat), salt:z(n.salt), fiber:z(n.fiber)}, levels:pr.levels || null, grade:pr.grade || null, nova:pr.nova || null, additives:pr.additives || 0,
+    allergens:(pr.allergens || []).slice(0, 20), traces:(pr.traces || []).slice(0, 20), ingredients:(pr.ingredients || "").slice(0, 5000), src, by:cuser ? cuser.uid : "", at:Date.now()};
+}
+function cloudProducts(){
+  if (prodUnsub || !fdb) return;
+  prodUnsub = fdb.collection(`${APP}/products`).limit(2000).onSnapshot(snap => {
+    const m = new Map(); snap.forEach(d => { const p = prodFromDoc(d.data()); if (p) m.set(p.code, p); }); products = m;
+    const q = $("#food-q"); if (q) $("#food-list").innerHTML = foodList(q.value);
+  }, () => { prodUnsub = null; });
+}
+async function saveProduct(pr, src){
+  if (CLOUD && fdb && cuser){ const doc = prodToDoc(pr, src); products.set(pr.code, prodFromDoc(doc));
+    const w = fdb.doc(`${APP}/products/${pr.code}`).set(doc); // queued while offline, sent when back
+    return Promise.race([w, new Promise(r => setTimeout(r, 5000))]).then(() => true, () => false); }
+  state.myProducts = [prodToDoc(pr, src), ...(state.myProducts || []).filter(x => x.code !== pr.code)].slice(0, 300); save(); return true;
+}
+async function getProduct(code){
+  code = String(code || "").replace(/\D/g, ""); if (code.length < 6 || code.length > 14) throw {code:"badcode"};
+  if (products.has(code)) return products.get(code);
+  const mine = (state.myProducts || []).find(x => x.code === code); if (mine) return prodFromDoc(mine);
+  if (CLOUD && fdb && cuser){ try { const d = await Promise.race([fdb.doc(`${APP}/products/${code}`).get(), late(4000)]); if (d.exists){ const p = prodFromDoc(d.data()); if (p){ products.set(code, p); return p; } } } catch(e){} }
+  const pr = await fetchProduct(code); pr.src = "off"; pr.levels = levelsOf(pr.nut, pr.levels);
+  saveProduct(pr, "off").catch(() => {}); return pr;
+}
+function ingredientsHtml(pr, open){
+  if (!pr.ingredients) return `<p class="sub">No ingredient list yet.</p>`;
+  const mine = ((state.profile.health || {}).allergies || []).map(k => (ALLERGENS.find(a => a[0] === k) || [0, k])[1].split(" ")[0].toLowerCase());
+  const words = [...new Set([...pr.allergens.map(a => a.replace(/-/g, " ")), ...mine, "milk","egg","peanut","wheat","soy","sesame","almond","cashew","hazelnut","walnut","fish","shrimp","mustard","gluten"])].filter(w => w.length > 2);
+  let h = esc(pr.ingredients); for (const w of words) h = h.replace(new RegExp(`\\b(${w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\w*)`, "gi"), "<b>$1</b>");
+  return `<details ${open ? "open" : ""} class="ingr"><summary>Ingredients</summary><p>${h}</p><small class="sub">Allergens are in bold. Always check the pack.</small></details>`;
+}
+const srcLine = pr => pr.src === "user" ? "Added by a Contour member" : "From Open Food Facts";
+function productForm(code, from){
+  nfCode = code || ""; const A = ALLERGENS;
+  openSheet(`${head("Add this product")}<p class="sub">Copy the numbers from the label. Once saved, everyone using Contour can find it by scanning or searching.</p>
+  <form data-form="newprod" data-from="${from}" style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Barcode number<input id="np-code" type="text" inputmode="numeric" maxlength="14" value="${esc(code || "")}"></label>
+    <div class="grid2"><label class="f">Product name<input id="np-name" type="text" maxlength="80" placeholder="Greek yogurt, plain"></label><label class="f">Brand<input id="np-brand" type="text" maxlength="60" placeholder="Oikos"></label></div>
+    <div class="grid2"><label class="f">Serving on the label<input id="np-serv" type="text" maxlength="40" placeholder="3/4 cup (175 g)"></label><label class="f">Serving weight (g or ml)<input id="np-sg" type="number" inputmode="decimal" min="1" max="2000" placeholder="175"></label></div>
+    <div class="f">The numbers on the label are<div class="seg" role="group" aria-label="Label basis" style="margin-top:6px"><button type="button" data-act="np-basis" data-v="serv" aria-pressed="true">Per serving</button><button type="button" data-act="np-basis" data-v="100" aria-pressed="false">Per 100 g</button></div></div>
+    <div class="grid2">${fld("np-kcal","Calories","",'min="0" max="5000"')}${fld("np-p","Protein (g)","",'min="0" max="1000"')}</div>
+    <div class="grid2">${fld("np-c","Carbohydrate (g)","",'min="0" max="1000"')}${fld("np-f","Fat (g)","",'min="0" max="1000"')}</div>
+    <div class="grid2">${fld("np-sug","Sugars (g)","",'min="0" max="1000"')}${fld("np-sat","Saturated fat (g)","",'min="0" max="1000"')}</div>
+    <div class="grid2">${fld("np-na","Sodium (mg)","",'min="0" max="50000"')}${fld("np-fib","Fibre (g)","",'min="0" max="1000"')}</div>
+    <label class="f">Ingredients<textarea id="np-ing" rows="4" maxlength="5000" placeholder="Type or paste the ingredient list"></textarea></label>
+    <div class="f">Contains<div class="chips" style="margin-top:6px">${A.map(([k, l]) => `<label class="chip ck"><input type="checkbox" data-npa value="${k}">${esc(l)}</label>`).join("")}</div></div>
+    <div class="err" id="np-err" role="alert"></div><button class="btn" id="np-go">Save product</button></form>`);
+}
 /* ---------- product check: barcode, Open Food Facts, personal flags ---------- */
 let chk = null, chkMsg = "", chkBusy = false, qrScanner = null, scanFor = "check", scanProduct = null;
 const loaded = {};
@@ -1420,7 +1569,7 @@ async function fetchProduct(code){
   const tags = a => (Array.isArray(a) ? a : []).map(t => String(t).replace(/^[a-z]{2}:/, ""));
   const sq = +p.serving_quantity;
   return {code, name:String(p.product_name_en || p.product_name || "Unnamed product").slice(0, 70), brand:String(p.brands || "").split(",")[0].trim().slice(0, 40), nut, levels, grade:/^[a-e]$/.test(p.nutriscore_grade || "") ? p.nutriscore_grade : null, nova:[1,2,3,4].includes(+p.nova_group) ? +p.nova_group : null,
-    additives:tags(p.additives_tags).length, allergens:tags(p.allergens_tags), traces:tags(p.traces_tags), ingredients:String(p.ingredients_text_en || p.ingredients_text || "").slice(0, 600), serving:String(p.serving_size || "").slice(0, 30), servingG:isFinite(sq) && sq > 0 && sq < 2000 ? Math.round(sq) : 100};
+    additives:tags(p.additives_tags).length, allergens:tags(p.allergens_tags), traces:tags(p.traces_tags), ingredients:String(p.ingredients_text_en || p.ingredients_text || "").slice(0, 5000), serving:String(p.serving_size || "").slice(0, 30), servingG:isFinite(sq) && sq > 0 && sq < 2000 ? Math.round(sq) : 100};
 }
 function judge(pr, hh){
   hh = hh || {}; const F = [], A = hh.allergies || [], C = hh.conditions || [], L = pr.levels, n = pr.nut, g = (v, u = "g") => v == null ? "" : ` (${r1(v)} ${u} per 100 g)`;
@@ -1454,7 +1603,7 @@ function productCard(pr){
     ${hh && ((hh.allergies || []).length || (hh.conditions || []).length) ? "" : `<p class="sub">Add allergies or health conditions in Profile to get flags that are personal to you.</p>`}</section>
   <section class="card"><h2>Per 100 g</h2><div class="lv">${cell("Calories", n.kcal, null, "kcal")}${cell("Sugar", n.sugars, pr.levels.sugars)}${cell("Saturated fat", n.sat, pr.levels.sat)}${cell("Salt", n.salt, pr.levels.salt)}${cell("Protein", n.p, null)}${cell("Fibre", n.fiber, null)}</div>
     <div class="reads">${pr.grade ? `<div class="read"><span>Nutri-Score</span><span class="v">${pr.grade.toUpperCase()}</span></div>` : ""}${pr.nova ? `<div class="read"><span>Processing (NOVA)</span><span class="v">${pr.nova} of 4</span></div>` : ""}<div class="read"><span>Additives listed</span><span class="v">${pr.additives}</span></div>${pr.allergens.length ? `<div class="read"><span>Allergens on label</span><span class="v">${esc(pr.allergens.join(", ").replace(/-/g, " "))}</span></div>` : ""}</div>
-    ${pr.ingredients ? `<details><summary style="cursor:pointer;font-weight:600">Ingredients</summary><p class="sub" style="margin-top:8px">${esc(pr.ingredients)}</p></details>` : ""}</section>
+    ${ingredientsHtml(pr, true)}<p class="sub" style="font-size:12px">${srcLine(pr)}</p></section>
   ${n.kcal != null && !viewing ? `<section class="card"><h2>Add it to today's log</h2><div class="row"><label class="f" style="flex:1">Grams${pr.serving ? ` (a serving is ${esc(pr.serving)})` : ""}<input id="chk-g" type="number" inputmode="decimal" min="1" max="3000" value="${pr.servingG}"></label><button class="btn" data-act="chk-add" style="width:auto;align-self:flex-end">Add</button></div><div class="err" id="chk-add-msg" style="color:var(--muted)"></div></section>` : ""}`;
 }
 function viewCheck(){
@@ -1463,44 +1612,32 @@ function viewCheck(){
   <div><h1>Check a product</h1><p class="sub">Scan a barcode to see what is in it and whether it suits you.</p></div>
   <section class="card"><button class="btn" data-act="chk-scan">Scan a barcode</button>
     <form data-form="chk" class="row"><label class="f" style="flex:1">Or type the number under the barcode<input id="chk-code" type="text" inputmode="numeric" maxlength="14" autocomplete="off"></label><button class="btn alt" style="width:auto;align-self:flex-end">Look up</button></form>
-    <div class="err" id="chk-msg" style="${chkBusy ? "color:var(--muted)" : ""}">${esc(chkBusy ? "Looking it up…" : chkMsg)}</div></section>
+    <div class="err" id="chk-msg" style="${chkBusy ? "color:var(--muted)" : ""}">${esc(chkBusy ? "Looking it up…" : chkMsg)}</div>
+    ${chkNF && !chkBusy && !viewing ? `<p class="nfadd">Have the pack? <button class="linkbtn" data-act="np-open" data-code="${esc(chkNF)}" data-from="check">Add this product for everyone</button></p>` : ""}</section>
   ${chk ? productCard(chk) : ""}
   ${rec.length ? `<section class="card"><h2>Recently checked</h2><div>${rec.map(x => `<button class="client" data-act="chk-recent" data-code="${esc(x.code)}"><span><b>${esc(x.name)}</b><small>${esc(x.brand || "")}</small></span><span class="pill st-${esc(x.st)}">${esc(x.v)}</span></button>`).join("")}</div></section>` : ""}
-  <p class="note"><b>About these results.</b> Product data comes from Open Food Facts, a volunteer database, and can be missing or out of date. Always read the pack if you have an allergy. This is general guidance, not medical advice.</p>`;
+  <p class="note"><b>About these results.</b> Product data comes from Open Food Facts and from products Contour members add. It can be missing or out of date. Always read the pack if you have an allergy. This is general guidance, not medical advice.</p>`;
 }
-const CHK_COPY = {badcode:"That does not look like a barcode number.", notfound:"That product is not in Open Food Facts yet. Try another, or log it by hand.", offline:"The product could not be looked up. Check your connection."};
+const CHK_COPY = {badcode:"That does not look like a barcode number.", notfound:"We could not find that product yet.", offline:"The product could not be looked up. Check your connection."};
 async function lookup(code){
   chkBusy = true; chkMsg = ""; if (tab === "check") render();
-  try { chk = await fetchProduct(code); const J = judge(chk, state.profile.health);
+  chkNF = ""; try { chk = await getProduct(code); const J = judge(chk, state.profile.health);
     if (!viewing && !state.demo){ state.checks = [{code:chk.code, name:chk.name, brand:chk.brand, v:J.verdict[1], st:J.verdict[0]}, ...(state.checks || []).filter(x => x.code !== chk.code)].slice(0, 12); save(); } }
-  catch(e){ chk = null; chkMsg = CHK_COPY[e && e.code] || CHK_COPY.offline; }
+  catch(e){ chk = null; chkMsg = CHK_COPY[e && e.code] || CHK_COPY.offline; if (e && e.code === "notfound") chkNF = String(code).replace(/\D/g, ""); }
   chkBusy = false; if (tab === "check") render();
 }
 function gotCodeTyped(v){ scanFor = "meal"; gotCode(v); }
-function stopScanner(){ const q = qrScanner; qrScanner = null; if (q) q.stop().then(() => q.clear()).catch(() => {}); }
-async function openScanner(target){
-  scanFor = target;
-  openSheet(`${head("Scan a barcode")}<p class="sub">Point the camera at the barcode and hold steady.</p><div id="qr-reader"></div><div class="err" id="qr-msg" style="color:var(--muted)">Starting the camera…</div>
-    <form data-form="${target === "meal" ? "mealcode" : "chk"}" class="row"><label class="f" style="flex:1">Or type the number<input id="${target === "meal" ? "meal-code" : "chk-code2"}" type="text" inputmode="numeric" maxlength="14" autocomplete="off"></label><button class="btn alt" style="width:auto;align-self:flex-end">Look up</button></form>`);
-  try {
-    await loadScript("vendor/html5-qrcode.min.js"); if (!$("#qr-reader")) return;
-    const Fm = window.Html5QrcodeSupportedFormats, q = new window.Html5Qrcode("qr-reader", {formatsToSupport:[Fm.EAN_13, Fm.EAN_8, Fm.UPC_A, Fm.UPC_E, Fm.CODE_128], verbose:false});
-    qrScanner = q;
-    await q.start({facingMode:"environment"}, {fps:10, qrbox:(w, h) => ({width:Math.round(Math.min(w, 420)*0.86), height:Math.round(Math.min(h, 300)*0.5)})}, code => { if (qrScanner !== q) return; gotCode(code); }, () => {});
-    if ($("#qr-msg")) $("#qr-msg").textContent = "";
-  } catch(e){ qrScanner = null; if ($("#qr-msg")) $("#qr-msg").textContent = "The camera could not start. Allow camera access for this app, or type the number instead."; }
-}
 async function gotCode(code){
-  const target = scanFor; stopScanner();
-  if (target === "meal"){ const m = sheetMeal; $("#panel").innerHTML = `${head("Scan a barcode")}<p class="sub">Looking it up…</p>`; try { scanProduct = await fetchProduct(code); } catch(e){ scanProduct = {err:CHK_COPY[e && e.code] || CHK_COPY.offline}; } foodSheet(m); }
+  const target = scanFor; stopScanner(); code = String(code || "").replace(/\D/g, "");
+  if (target === "meal"){ const m = sheetMeal; $("#panel").innerHTML = `${head("Scan a barcode")}<p class="sub">Looking it up…</p>`; try { scanProduct = await getProduct(code); } catch(e){ scanProduct = {err:CHK_COPY[e && e.code] || CHK_COPY.offline, nf:e && e.code === "notfound", code}; } foodSheet(m); }
   else { closeSheet(); tab = "check"; render(); lookup(code); }
 }
 function productAddBox(){
   const pr = scanProduct; if (!pr) return "";
-  if (pr.err) return `<div class="ai"><b>Barcode</b><p class="sub">${esc(pr.err)}</p></div>`;
-  if (pr.nut.kcal == null) return `<div class="ai"><b>${esc(pr.name)}</b><p class="sub">This product has no nutrition numbers in Open Food Facts. Search the list or add it by hand.</p></div>`;
+  if (pr.err) return `<div class="ai"><b>Barcode ${esc(pr.code || "")}</b><p class="sub">${esc(pr.err)}${pr.nf ? " Search the list below instead." : ""}</p>${pr.nf && !viewing ? `<p class="nfadd">Have the pack? <button class="linkbtn" data-act="np-open" data-code="${esc(pr.code)}" data-from="meal">Add this product for everyone</button></p>` : ""}</div>`;
+  if (pr.nut.kcal == null) return `<div class="ai"><b>${esc(pr.name)}</b><p class="sub">This product has no nutrition numbers yet. Search the list instead.</p>${ingredientsHtml(pr, false)}</div>`;
   const J = judge(pr, state.profile.health);
-  return `<div class="ai"><div class="row between"><b>${esc(pr.name)}</b><span class="pill st-${J.verdict[0]}">${J.verdict[1]}</span></div><p class="sub">${esc(pr.brand || "")} · ${Math.round(pr.nut.kcal)} kcal per 100 g</p>
+  return `<div class="ai"><div class="row between"><b>${esc(pr.name)}</b><span class="pill st-${J.verdict[0]}">${J.verdict[1]}</span></div><p class="sub">${esc(pr.brand || "")} · ${Math.round(pr.nut.kcal)} kcal per 100 g · ${srcLine(pr)}</p>${ingredientsHtml(pr, false)}
     <div class="row"><label class="f" style="flex:1">Grams${pr.serving ? ` (a serving is ${esc(pr.serving)})` : ""}<input id="sp-g" type="number" inputmode="decimal" min="1" max="3000" value="${pr.servingG}"></label><button class="btn" data-act="sp-add" style="width:auto;align-self:flex-end">Add</button></div></div>`;
 }
 function addProduct(pr, grams){
@@ -1786,12 +1923,39 @@ function deleteSheet(){
       <label class="check"><input type="checkbox" id="del-ok"><span>I understand this is permanent.</span></label>
       <div class="err" id="del-err"></div><button class="btn" id="del-go" style="background:var(--high);color:#fff">Delete my Contour data</button></form>`);
 }
+/* ---------- nothing a person types is ever lost: drafts survive reloads, updates and closed sheets ---------- */
+const DRAFT_KEY = "contour-drafts", NO_DRAFT = new Set(["vault","del","chk","mealcode","vaultenter"]);
+let draftT = null;
+const draftsAll = () => { try { return JSON.parse(localStorage.getItem(DRAFT_KEY)) || {}; } catch(e){ return {}; } };
+const draftKey = f => f.dataset.form + (f.dataset.id ? ":" + f.dataset.id : "");
+const fieldKey = el => el.id ? el.id : "#" + (el.name || Object.keys(el.dataset)[0] || "x") + "=" + el.value;
+function draftSave(f){
+  const all = draftsAll(), d = {};
+  f.querySelectorAll("input,textarea,select").forEach(el => { if (["password","file","submit","button"].includes(el.type) || (!el.id && !(el.type === "checkbox" || el.type === "radio"))) return; d[fieldKey(el)] = el.type === "checkbox" || el.type === "radio" ? el.checked : el.value; });
+  f.querySelectorAll("[data-act][aria-pressed]").forEach(b => { if (b.getAttribute("aria-pressed") === "true") d["@" + b.dataset.act] = b.dataset.v; });
+  all[draftKey(f)] = {t:Date.now(), d}; try { localStorage.setItem(DRAFT_KEY, JSON.stringify(all)); } catch(e){}
+}
+function draftRestore(root){
+  if (!root || viewing) return; const all = draftsAll();
+  root.querySelectorAll("form[data-form]").forEach(f => {
+    if (NO_DRAFT.has(f.dataset.form)) return; const x = all[draftKey(f)]; if (!x || Date.now() - x.t > 30*864e5) return; let n = 0;
+    f.querySelectorAll("input,textarea,select").forEach(el => { const k = fieldKey(el); if (!(k in x.d) || ["password","file"].includes(el.type)) return;
+      if (el.type === "checkbox" || el.type === "radio"){ if (el.checked !== x.d[k]){ el.checked = x.d[k]; n++; } } else if (el.value !== x.d[k]){ el.value = x.d[k]; n++; } });
+    for (const [k, v] of Object.entries(x.d)) if (k[0] === "@") f.querySelectorAll(`[data-act="${k.slice(1)}"][aria-pressed]`).forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
+    if (n && !f.querySelector(".draftnote")) f.insertAdjacentHTML("afterbegin", `<p class="draftnote">We kept what you typed last time. <button type="button" class="linkbtn" data-act="draft-discard">Start over</button></p>`);
+  });
+}
+function draftClear(name){ const all = draftsAll(); let ch = false; for (const k of Object.keys(all)) if (k === name || k.startsWith(name + ":")){ delete all[k]; ch = true; } if (ch) try { localStorage.setItem(DRAFT_KEY, JSON.stringify(all)); } catch(e){} }
+const obKey = () => "contour-ob:" + (cuser ? cuser.uid : "local");
+function obPersist(){ if (!ob) return; try { localStorage.setItem(obKey(), JSON.stringify({t:Date.now(), i:ob.i, d:ob.d, side:ob.side})); } catch(e){} }
+function obRestore(){ try { const x = JSON.parse(localStorage.getItem(obKey())); if (x && x.d && Date.now() - x.t < 30*864e5) return x; } catch(e){} return null; }
 /* ---------- first-run setup: one question per screen, every answer shapes the plan ---------- */
 let ob = null, obForce = false, acctLoading = false;
 const needsSetup = () => !viewing && !isTrainer() && (obForce || state.demo || (!state.profile.setup && !state.weights.length && !state.scans.length));
 const GOALS = [["lose","Lose fat","A steady calorie deficit, with strength work so the weight that comes off is fat."],["tone","Tone up and maintain","Eat at maintenance and build firmer muscle where you want it."],["gain","Build muscle","A small surplus and more protein so you gain muscle, not much fat."],["health","Feel healthier","Better habits first: regular meals, protein, water and movement."]];
 const ACTS = [[1.2,"Mostly sitting","Desk job, little walking"],[1.375,"Lightly active","Some walking most days"],[1.55,"On my feet a lot","Retail, teaching, lots of stairs"],[1.725,"Physical job","Construction, warehouse, trades"]];
 function obInit(){
+  const saved = obRestore(); if (saved && !obForce){ ob = {i:saved.i || 0, err:"", side:saved.side || "f", d:saved.d}; return; }
   // Only prefill values the person actually gave. Placeholder defaults are never presented as theirs.
   const real = !state.demo && (state.profile.setup || state.weights.length || state.scans.length), P = real ? state.profile : {name:state.demo ? "" : state.profile.name, units:state.demo ? undefined : state.profile.units, health:state.demo ? undefined : state.profile.health}, k = real && state.weights.length ? curKg() : null;
   const units = P.units || (/^en-(US|LR|MM)$/i.test(navigator.language || "") ? "imperial" : "metric");
@@ -1871,7 +2035,7 @@ function viewOnboard(){
       <p class="note" style="font-size:13px">${CLOUD ? "Your data is saved to your Pixora account so you can use it on any device. Food photos go to Google Gemini to be read. Body scan photos never leave your phone." : "Your data stays on this device."} <button class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13px">Read the full notice</button></p>
       ${foot("Start my plan")}`;
   }
-  return `<div class="ob">${top}${body}</div>`;
+  obPersist(); return `<div class="ob">${top}${body}</div>`;
 }
 function obStash(){ if (!ob) return; const D = ob.d, v = id => { const e = $("#" + id); return e ? e.value : null; };
   if (v("ob-name") != null) D.name = v("ob-name"); if (v("ob-age")) D.age = +v("ob-age");
@@ -1896,7 +2060,7 @@ function obFinish(){
   if (state.demo){ state = freshState(P); } else state.profile = {...state.profile, ...P};
   if (!P.goalKg) delete state.profile.goalKg; if (!P.health) delete state.profile.health;
   logWeight(ob.d.kg); state.focus = ob.d.focus.slice(0, 3); state.privacyOk = 1;
-  ob = null; obForce = false; pendingAck = false; tab = "home"; save();
+  try { localStorage.removeItem(obKey()); } catch(e){} ob = null; obForce = false; pendingAck = false; tab = "home"; save();
   render(); toast("You're all set. Your plan is ready.");
 }
 /* ---------- getting-started checklist: ticks itself off from real use ---------- */
@@ -2074,14 +2238,14 @@ function render(){
   if (onb){ tourEnd(); v.innerHTML = viewOnboard(); v.scrollTop = 0; return; }
   $("#btn-profile").textContent = !state.demo && state.profile.name ? state.profile.name : "Profile";
   v.innerHTML = ({texs:viewTexs, home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
-  const inv = tourInvite(); if (inv) v.insertAdjacentHTML("afterbegin", inv);
+  const inv = tourInvite(); if (inv) v.insertAdjacentHTML("afterbegin", inv); draftRestore(v);
   v.scrollTop = keep; if (tourS && tourS.t === tab) requestAnimationFrame(tourShow); else if (tourS) tourEnd();
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
 function go(t){ if (tourS) tourEnd(); tab = TABS.includes(t) ? t : "home"; if (window.PixoraUsage) PixoraUsage.track("tab_" + tab); $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
 
 /* ---------- sheets ---------- */
-function openSheet(html){ $("#panel").innerHTML = html; $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
+function openSheet(html){ $("#panel").innerHTML = html; draftRestore($("#panel")); $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
 function closeSheet(){ clearInterval(wkTimer); wkTimer = null; stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
 const head = t => `<div class="hd"><h2>${t}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>`;
 const fld = (id, label, val, attrs="", hint="") => `<label class="f">${label}<input id="${id}" type="number" inputmode="decimal" step="0.1" value="${val ?? ""}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
@@ -2139,7 +2303,9 @@ let sheetMeal = "Snacks", aiItems = [], aiCtl = null, sampleFn = null, canImages
 let lastHits = [];
 function foodList(q){
   const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean), full = toks.join(" ");
-  const pool = [...community.map(x => ({a:x.a, src:"Community", id:x.id, by:x.by})), ...(state.myFoods||[]).map(a => ({a, src:"Yours"})), ...FOODS.map(a => ({a, src:"Common"}))];
+  const prodRows = [...products.values(), ...(state.myProducts || []).map(prodFromDoc).filter(Boolean)].filter(pr => pr.nut.kcal != null).map(pr => { const g = pr.servingG, k = v => r1((v || 0)*g/100);
+    return {a:[(pr.brand ? pr.brand + " " : "") + pr.name, pr.serving || g + " g", Math.round(pr.nut.kcal*g/100), k(pr.nut.p), k(pr.nut.c), k(pr.nut.f)], src:"Packaged", prod:pr}; });
+  const pool = [...prodRows, ...community.map(x => ({a:x.a, src:"Community", id:x.id, by:x.by})), ...(state.myFoods||[]).map(a => ({a, src:"Yours"})), ...FOODS.map(a => ({a, src:"Common"}))];
   let hits;
   if (!toks.length) hits = pool.slice(0, 40);
   else {
@@ -2182,7 +2348,7 @@ function foodSheet(meal){
   openSheet(`${head("Add to " + meal.toLowerCase())}
     ${aiBlock()}
     ${productAddBox()}${STANDALONE ? `<button class="btn alt" data-act="meal-scan">Scan a barcode</button>` : ""}
-    <label class="f">Search ${(FOODS.length + (Array.isArray(window.USDA) ? window.USDA.length : 0) + community.length).toLocaleString()} foods<input id="food-q" type="search" placeholder="roti, chicken breast, oatmeal…" autocomplete="off" style="font-size:16px"></label>
+    <label class="f">Search ${(FOODS.length + (Array.isArray(window.USDA) ? window.USDA.length : 0) + community.length + products.size).toLocaleString()} foods<input id="food-q" type="search" placeholder="roti, chicken breast, oatmeal…" autocomplete="off" style="font-size:16px"></label>
     <div class="list" id="food-list">${foodList("")}</div>
     <details><summary style="cursor:pointer;font-weight:600">Create a food</summary>
       <form data-form="manual" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
@@ -2225,7 +2391,7 @@ const actions = {
   day(el){ const d = parseD(vd()); d.setDate(d.getDate() + parseInt(el.dataset.d, 10)); const n = ymd(d); viewDate = n >= today() ? null : n; render(); },
   newscan(){ state.demo ? needProfile() : scanSheet(); },
   addfood(el){ foodSheet(el.dataset.meal); },
-  pickfood(el){ const o = lastHits[+el.dataset.i]; if (!o) return; const f = o.a; if (addEntry({name:f[0], serv:f[1], kcal:f[2], p:f[3], c:f[4], f:f[5]}) === false) return; el.textContent = "Added"; render(); },
+  pickfood(el){ const o = lastHits[+el.dataset.i]; if (!o) return; if (o.prod){ scanProduct = o.prod; foodSheet(sheetMeal); $("#panel").scrollTop = 0; return; } const f = o.a; if (addEntry({name:f[0], serv:f[1], kcal:f[2], p:f[3], c:f[4], f:f[5]}) === false) return; el.textContent = "Added"; render(); },
   qty(el){ if (state.demo) return needProfile(); const list = state.days[vd()] || [], e = list.find(x => x.id === el.dataset.id); if (!e) return; e.qty = Math.round((e.qty + parseFloat(el.dataset.d))*2)/2; if (e.qty <= 0){ const at = list.indexOf(e); list.splice(at, 1); e.qty = 0.5; const d = vd(); toast(`Removed ${e.name}`, () => { (state.days[d] ||= []).splice(at, 0, e); save(); render(); }); } save(); render(); },
   water(el){ if (state.demo) return needProfile(); const t = vd(), v = Math.max(0, Math.min(30, (state.water[t] || 0) + parseInt(el.dataset.d, 10))); if (v) state.water[t] = v; else delete state.water[t]; save(); render(); },
   "rep-days"(el){ repDays = +el.dataset.v === 30 ? 30 : 7; render(); },
@@ -2283,6 +2449,10 @@ const actions = {
   "tour-next"(){ tourNext(1); }, "tour-prev"(){ tourNext(-1); }, "tour-end"(){ tourEnd(); },
   "gs-hide"(){ state.gsHide = 1; save(); render(); },
   "gs-food"(){ go("today"); }, "gs-plan"(){ go("focus"); }, "gs-scan"(){ go("scan"); scanSheet(); },
+  "scan-torch"(el){ const t = scanStream && scanStream.getVideoTracks()[0]; if (!t) return; const on = el.getAttribute("aria-pressed") !== "true"; t.applyConstraints({advanced:[{torch:on}]}).then(() => el.setAttribute("aria-pressed", on)).catch(() => {}); },
+  "draft-discard"(el){ const f = el.closest("form[data-form]"); if (!f) return; draftClear(draftKey(f)); f.reset(); f.querySelectorAll("[data-act][aria-pressed]").forEach((b, i, a) => b.setAttribute("aria-pressed", b === a[0])); const n = f.querySelector(".draftnote"); if (n) n.remove(); },
+  "np-open"(el){ productForm(el.dataset.code, el.dataset.from || "check"); },
+  "np-basis"(el){ for (const b of el.parentNode.children) b.setAttribute("aria-pressed", b === el); },
   "body-side"(el){ bodySide = el.dataset.v === "b" ? "b" : "f"; render(); },
   part(el){ partSheet(el.dataset.region); },
   "part-focus"(el){ const k = el.dataset.region, i = state.focus.indexOf(k);
@@ -2350,6 +2520,25 @@ async function readScanPhoto(file){
   } catch(e){ out.textContent = AI_COPY[e && e.code] || "The photo could not be read. Type the numbers in instead."; }
 }
 const forms = {
+  async newprod(){
+    const f = document.querySelector('form[data-form="newprod"]'), from = f.dataset.from, err = $("#np-err"), v = id => (($("#" + id) || {}).value || "").trim(), n = id => { const x = v(id); if (x === "") return null; const y = parseFloat(x); return isFinite(y) && y >= 0 ? y : NaN; };
+    const code = v("np-code").replace(/\D/g, ""), name = v("np-name"), sg = n("np-sg"), per100 = document.querySelector('[data-act=np-basis][data-v="100"]').getAttribute("aria-pressed") === "true";
+    if (!codeOk(code)) return err.textContent = "Check the barcode number. It should be the 8 to 13 digits under the bars.";
+    if (name.length < 2) return err.textContent = "Enter the product name.";
+    const vals = {kcal:n("np-kcal"), p:n("np-p"), c:n("np-c"), f:n("np-f"), sugars:n("np-sug"), sat:n("np-sat"), na:n("np-na"), fiber:n("np-fib")};
+    if (Object.values(vals).some(x => x !== null && isNaN(x))) return err.textContent = "One of the numbers is not valid.";
+    if (vals.kcal == null) return err.textContent = "Enter the calories from the label.";
+    if (!per100 && !(sg > 0)) return err.textContent = "Enter the serving weight in grams, so we can work out the numbers per 100 g.";
+    const k = per100 ? 1 : 100/sg, c = x => x == null ? null : Math.round(x*k*100)/100;
+    const nut = {kcal:c(vals.kcal), p:c(vals.p), c:c(vals.c), f:c(vals.f), sugars:c(vals.sugars), sat:c(vals.sat), salt:vals.na == null ? null : Math.round(vals.na*k*2.5)/1000, fiber:c(vals.fiber)};
+    if (nut.kcal > 950) return err.textContent = "Those calories are too high for the serving weight. Check both numbers.";
+    const pr = {code, name, brand:v("np-brand"), serving:v("np-serv"), servingG:sg > 0 ? Math.round(sg) : 100, nut, levels:levelsOf(nut), grade:null, nova:null, additives:0, allergens:[...document.querySelectorAll("[data-npa]:checked")].map(x => x.value), traces:[], ingredients:v("np-ing"), src:"user"};
+    $("#np-go").disabled = true; const ok = await saveProduct(pr, "user"); pr.by = cuser ? cuser.uid : "";
+    if (!ok){ $("#np-go").disabled = false; return err.textContent = "It could not be saved. Check your connection and try again."; }
+    draftClear("newprod");
+    toast("Saved. Everyone can now find this product.");
+    if (from === "meal"){ scanProduct = pr; foodSheet(sheetMeal); } else { closeSheet(); tab = "check"; chk = pr; chkNF = ""; chkMsg = ""; render(); }
+  },
   del(){ cloudDeleteAccount(); },
   async tex(){
     const f = document.querySelector('form[data-form="tex"]'), id = f.dataset.id, err = $("#tx-err"), v = i => (($("#" + i) || {}).value || "").trim();
@@ -2471,12 +2660,16 @@ document.addEventListener("keydown", e => {
   if (e.key === "Enter" && $("#app").classList.contains("onboard") && e.target.matches && e.target.matches(".ob input")){ e.preventDefault(); return actions["ob-next"](); }
   if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]") && (!viewing || e.target.dataset.act === "part")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
+document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ const form = e.target, key = draftKey(form); setTimeout(() => { if (!form.isConnected) draftClear(key); }, 1500); if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (e.target.closest && e.target.closest(".ob")){ obStash(); obPersist(); }
+  { const f = e.target.closest && e.target.closest("form[data-form]"); if (f && !NO_DRAFT.has(f.dataset.form)){ clearTimeout(draftT); draftT = setTimeout(() => draftSave(f), 250); } }
   if (/^ob-(h|ft|in|w)$/.test(e.target.id || "")){ const b = $("#ob-bmi"); if (b) b.textContent = obBmiLine(); return; }
   if (e.target.dataset && e.target.dataset.aiG != null){ const i = +e.target.dataset.aiG, x = aiItems[i]; if (!x) return; const v = parseFloat(e.target.value); x.g = isFinite(v) && v > 0 ? Math.min(v, 3000) : 0;
     $("#ai-k-"+i).textContent = `${Math.round(aiK(x))} kcal · P ${Math.round(x.p100*x.g/100)} C ${Math.round(x.c100*x.g/100)} F ${Math.round(x.f100*x.g/100)}`; $("#ai-addbtn").textContent = aiTotal(); return; } if (e.target.id === "food-q") $("#food-list").innerHTML = foodList(e.target.value); });
-document.addEventListener("change", e => { if (e.target.id === "cl-file" && e.target.files && e.target.files[0]){ e.target.files[0].text().then(importPkgText).then(m => { clientMsg = m || "Added."; render(); }); return; } if (e.target.dataset && e.target.dataset.ps && e.target.files && e.target.files[0]){ const kg0 = num("ps-kg0"); psFiles[e.target.dataset.ps] = e.target.files[0]; psMsg = ""; scanSheet(); if (kg0 != null && $("#ps-kg0")) $("#ps-kg0").value = kg0; return; } if (e.target.id === "ms-photo" && e.target.files && e.target.files[0]) readScanPhoto(e.target.files[0]); if (e.target.id === "ai-photo" && e.target.files && e.target.files[0]) runAI(($("#ai-text").value || "").trim(), e.target.files[0]); });
+document.addEventListener("change", e => {
+  { const f = e.target.closest && e.target.closest("form[data-form]"); if (f && !NO_DRAFT.has(f.dataset.form)) draftSave(f); }
+  if (e.target.id === "scan-photo" && e.target.files && e.target.files[0]){ scanPhoto(e.target.files[0]); return; } if (e.target.id === "cl-file" && e.target.files && e.target.files[0]){ e.target.files[0].text().then(importPkgText).then(m => { clientMsg = m || "Added."; render(); }); return; } if (e.target.dataset && e.target.dataset.ps && e.target.files && e.target.files[0]){ const kg0 = num("ps-kg0"); psFiles[e.target.dataset.ps] = e.target.files[0]; psMsg = ""; scanSheet(); if (kg0 != null && $("#ps-kg0")) $("#ps-kg0").value = kg0; return; } if (e.target.id === "ms-photo" && e.target.files && e.target.files[0]) readScanPhoto(e.target.files[0]); if (e.target.id === "ai-photo" && e.target.files && e.target.files[0]) runAI(($("#ai-text").value || "").trim(), e.target.files[0]); });
 window.addEventListener("resize", () => { if (tourS) tourShow(); });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (TABS.includes(h) && h !== tab) go(h); });
 
