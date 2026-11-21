@@ -18,10 +18,12 @@ It then opens full screen like an app and keeps working without a connection.
 
 ## What to know
 
-- The app is invite-only. People need an access code to get in. The codes are not stored in this repository, only locked copies of the key they open.
-- Each person's data stays in the browser on their own device. Clearing site data or switching phones starts them fresh. Nothing is sent to a server.
-- Trainer sharing works by file: a member creates a share file for one trainer, and only that trainer can open it.
-- Logging food from a photo, photo body scans and the shared community food list need the Claude-hosted version of the app and are hidden here.
+- People create an account with an email and password. The same Pixora account works across Pixora apps.
+- Data is saved on the device first and synced to the Pixora cloud (Firebase, database located in Toronto). The app keeps working offline after the first login and syncs when the connection returns.
+- A member can give one trainer read-only access by entering the trainer's email. The trainer sees the member's current profile and cannot change it.
+- `data/cloud.js` holds the Firebase web config. It is not a secret; access is controlled by the security rules in the Firebase console.
+- The Firebase scripts in `vendor/` are copied from the `firebase` npm package (version 10.12.2) so the app can start offline.
+- Logging food from a photo and photo body scans need the Claude-hosted version of the app and are hidden here.
 - When you update the files, change `VERSION` at the top of `sw.js` so installed phones fetch the new copy.
 
 ## Data sources

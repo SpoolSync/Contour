@@ -228,7 +228,10 @@ details.day summary small{color:var(--muted)}
 
 <script src="data/exercises.js"></script>
 <script src="data/foods.js"></script>
-<script src="data/access.js"></script>
+<script src="vendor/firebase-app-compat.js"></script>
+<script src="vendor/firebase-auth-compat.js"></script>
+<script src="vendor/firebase-firestore-compat.js"></script>
+<script src="data/cloud.js"></script>
 <script>
 "use strict";
 /* ---------- helpers ---------- */
@@ -342,8 +345,11 @@ function normalise(s){
   s.profile.units = s.profile.units === "imperial" ? "imperial" : "metric"; s.profile.equip = s.profile.equip === "gym" ? "gym" : "home";
   return s;
 }
+// The GitHub build ships Firebase and a Pixora cloud config. With both present, accounts and sync replace access codes.
+const CLOUD = !!(window.firebase && window.PIXORA_CLOUD && !(window.claude && window.claude.use));
+let localKey = LOCAL_KEY;
 let state = null;
-try { state = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
+if (!CLOUD) try { state = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
 if (!state) state = demoState();
 
 let cloudDb = null, myId = null, community = [];
@@ -358,7 +364,8 @@ function save(){
   state.ts = Date.now();
   const cutoff = daysAgo(180);
   for (const k of Object.keys(state.days)) if (k < cutoff) delete state.days[k];
-  try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e){}
+  try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){}
+  if (CLOUD) return cloudQueue();
   if (!cloudRef) return;
   clearTimeout(saveTimer); saveTimer = setTimeout(pushCloud, 700);
 }
@@ -431,6 +438,7 @@ const timed = pr => Promise.race([pr, new Promise((_, rej) => setTimeout(() => r
 const plain = x => JSON.parse(JSON.stringify(x));
 
 async function initAccess(){
+  if (CLOUD) return cloudAuthInit();
   access = "checking";
   const hasClaude = !!(window.claude && window.claude.use);
   // Outside Claude (for example on GitHub Pages) the access codes published with the app still gate it.
@@ -505,6 +513,7 @@ async function refreshCommunity(){
   const q = $("#food-q"); if (q) $("#food-list").innerHTML = foodList(q.value);
 }
 function viewGate(){
+  if (CLOUD) return cloudGate();
   const box = (t, m, retry) => `<section class="card"><h1>${t}</h1><p class="sub">${m}</p>${retry ? `<button class="btn" data-act="retry">Try again</button>` : ""}</section>`;
   if (access === "checking") return box("Checking access", "One moment.");
   if (access === "nodb") return box("Sign in to continue", "Contour is invite-only. Sign in to Claude in this browser, then open the link again.", true);
@@ -590,7 +599,7 @@ const myShape = () => state.demo && !state.scans.length ? null : shapeOf(state.s
 let tab = "today", scanning = false;
 const TABS = ["today","scan","focus","progress","reports","clients"];
 function banner(){
-  if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · shared ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
+  if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
   return state.demo ? `<div class="banner"><span>These are example numbers so you can see how it works.</span><button data-act="profile">Use my numbers</button></div>` : "";
 }
 function dayTotals(d){ const t = {kcal:0,p:0,c:0,f:0}; for (const e of (state.days[d]||[])){ t.kcal += e.kcal*e.qty; t.p += e.p*e.qty; t.c += e.c*e.qty; t.f += e.f*e.qty; } return t; }
@@ -846,10 +855,11 @@ async function deliverShare(){
   const sh = state.share; if (!sh || !subtle || state.demo || viewing) return false;
   let live = false;
   if (cloudDb && myId) try { await cloudDb.doc("shares/" + sh.fp + "_" + myId).set(await buildPkg()); live = true; } catch(e){}
-  if (state.share && (state.share.live !== live || live)){ state.share.live = live; if (live) state.share.sentAt = Date.now(); state.ts = Date.now(); try { localStorage.setItem(LOCAL_KEY, JSON.stringify(state)); } catch(e){} }
+  if (state.share && (state.share.live !== live || live)){ state.share.live = live; if (live) state.share.sentAt = Date.now(); state.ts = Date.now(); try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){} }
   return live;
 }
 function shareBox(){
+  if (CLOUD) return cloudShareBox();
   if (!subtle || state.demo || isTrainer()) return "";
   const sh = state.share;
   return `<div class="owner" id="share-box"><div><h2>Share with a trainer</h2><p class="sub">${sh ? `Shared with ${esc(sh.name)} since ${shortD(sh.since)}. ${sh.live ? "Your updates reach them automatically." : "This view cannot send updates for you, so send them a fresh share file whenever you want them to see new data."}` : "Give one trainer read-only access to your food log, workouts, scans, measurements, weight and reports. Ask them for their Trainer ID and paste it here. Only that trainer can open what you share."}</p></div>
@@ -859,6 +869,7 @@ function shareBox(){
 }
 const reShare = msg => { const b = $("#share-box"); if (b){ b.outerHTML = shareBox(); if (msg && $("#sh-err")) $("#sh-err").innerHTML = msg; } };
 async function becomeTrainer(name){
+  if (CLOUD) return cloudBecomeTrainer(name);
   if (!subtle) return false;
   const kp = await subtle.generateKey(ECDH, true, ["deriveBits"]), pub = b64(new Uint8Array(await subtle.exportKey("raw", kp.publicKey)));
   const units = state.profile.units;
@@ -879,6 +890,7 @@ async function importPkgText(text){
   catch(e){ return "This share was made for a different trainer, or the file is damaged. Ask the member to share again using your current Trainer ID."; }
 }
 async function trainerInit(){
+  if (CLOUD) return cloudTrainerInit();
   if (!isTrainer() || !state.trainer || !subtle) return;
   if (!importedLoaded){ importedLoaded = true; for (const pkg of Object.values(storedPkgs())) try { putClient(await readPkg(pkg, "file")); } catch(e){} if (tab === "clients" && !viewing) render(); }
   if (!liveSub && cloudDb){ liveSub = true;
@@ -888,6 +900,7 @@ async function trainerInit(){
     }, () => { liveSub = false; }); }
 }
 function viewClients(){
+  if (CLOUD) return cloudViewClients();
   const id = trainerId();
   const row = c => { const sn = c.snap, w = sn.weights && sn.weights[sn.weights.length-1], last = Object.keys(sn.days || {}).filter(k => (sn.days[k] || []).length).sort().pop();
     return `<button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span><b>${esc(c.name)}</b><small>${w ? showWt(w.kg) + " " + wtU() + " · " : ""}${last ? "last food log " + shortD(last) : "no food logged"} · ${sn.scans ? sn.scans.length : 0} scan${sn.scans && sn.scans.length === 1 ? "" : "s"}</small></span><small>${c.src === "live" ? "live" : "file"} · ${shortD(ymd(new Date(c.at)))}</small></button>`; };
@@ -904,8 +917,177 @@ function trainerSheet(){
   openSheet(`${head("Trainer profile")}
   <form data-form="tname" style="display:flex;flex-direction:column;gap:12px"><label class="f">Name your clients will see<input id="t-name" type="text" maxlength="30" required value="${esc(state.profile.name || "")}" style="font-size:16px"></label>
     <div class="seg" role="group" aria-label="Units"><button type="button" data-act="units" data-v="metric" aria-pressed="${!imp()}">kg · cm</button><button type="button" data-act="units" data-v="imperial" aria-pressed="${imp()}">lb · in</button></div>
-    <button class="btn">Save</button><p class="sub">Changing your name changes your Trainer ID text, but IDs you already sent keep working.</p></form>
-  ${!isOwner && gateDoc && subtle ? `<button type="button" class="btn alt" data-act="logout">Log out</button>` : ""}${ownerPanel()}`);
+    <button class="btn">Save</button>${CLOUD ? "" : `<p class="sub">Changing your name changes your Trainer ID text, but IDs you already sent keep working.</p>`}</form>
+  ${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
+}
+/* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
+const APP = "apps/contour";
+let fdb = null, cuser = null, cloudReady = false, pendingRole = "member", pushTimer = null, pushing = false, pushDirty = false, monthSig = {}, mainUnsub = null, grantsUnsub = null, lastDir = "";
+const late = ms => new Promise((_, rej) => setTimeout(() => rej({code:"timeout"}), ms));
+const offline = () => navigator.onLine === false;
+function cloudAuthInit(){
+  if (cloudReady) return Promise.resolve();
+  cloudReady = true; access = "checking";
+  try { firebase.initializeApp(window.PIXORA_CLOUD); fdb = firebase.firestore(); fdb.enablePersistence({synchronizeTabs:true}).catch(() => {}); }
+  catch(e){ access = "open"; setSync("Cloud unavailable, saved on this device"); return Promise.resolve(); }
+  return new Promise(res => { let first = true;
+    firebase.auth().onAuthStateChanged(async u => {
+      cuser = u || null;
+      if (u) await cloudEnter(u); else { cloudLeave(); access = "auth"; }
+      render(); if (first){ first = false; res(); }
+    });
+  });
+}
+async function cloudLoad(uid){
+  const base = fdb.doc(`${APP}/users/${uid}`), main = await base.get(); if (!main.exists) return null;
+  const s = JSON.parse(main.data().json), sig = {}; s.days = {};
+  const ms = await base.collection("months").get();
+  ms.forEach(d => { const j = (d.data() || {}).json; if (!j) return; sig[d.id] = j; Object.assign(s.days, JSON.parse(j)); });
+  const st = normalise({...s, demo:false}); if (st) st._sig = sig; return st;
+}
+const putLocal = () => { try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){} };
+async function cloudEnter(u){
+  localKey = LOCAL_KEY + ":" + u.uid;
+  let local = null; try { local = normalise(JSON.parse(localStorage.getItem(localKey))); } catch(e){}
+  state = local || demoState(); access = "open"; render();
+  let remote = null, reached = false; try { remote = await Promise.race([cloudLoad(u.uid), late(9000)]); reached = true; } catch(e){}
+  if (cuser !== u) return;
+  if (remote){ monthSig = remote._sig || {}; delete remote._sig; }
+  if (remote && (!local || (remote.ts || 0) > (local.ts || 0))){ state = remote; putLocal(); setSync("Synced"); }
+  else if (local){ if (reached) cloudQueue(); else setSync("Saved on this device, will sync"); }
+  else if (reached){
+    // A brand-new account. If this phone already tracked data before accounts existed, move it into the account once.
+    let legacy = null; try { if (!localStorage.getItem(LOCAL_KEY + ":adopted")) legacy = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
+    if (legacy && !legacy.demo){ state = legacy; if (!state.profile.name && pendingName) state.profile.name = pendingName; delete state.share; delete state.trainer; if (pendingRole === "trainer") state.profile.role = "trainer"; else delete state.profile.role;
+      try { localStorage.setItem(LOCAL_KEY + ":adopted", u.uid); } catch(e){} save(); }
+    else { pendingName = pendingName || u.displayName || ""; if (pendingRole === "trainer") await cloudBecomeTrainer(pendingName); else { render(); profileSheet(); } }
+  } else setSync("Offline. Connect once to load your account.");
+  if (mainUnsub) mainUnsub();
+  mainUnsub = fdb.doc(`${APP}/users/${u.uid}`).onSnapshot(snap => {
+    if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
+    if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
+  }, () => {});
+  cloudTrainerInit();
+}
+function cloudLeave(){
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); mainUnsub = grantsUnsub = null;
+  clearTimeout(pushTimer); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
+}
+function cloudLogout(){ closeSheet(); authTab = "login"; firebase.auth().signOut().catch(() => {}); }
+function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
+function cloudDirectory(){
+  const u = cuser, email = (u.email || "").toLowerCase(), nm = state.profile.name || "", sig = JSON.stringify([nm, isTrainer()]);
+  if (!email || sig === lastDir) return Promise.resolve(); lastDir = sig;
+  return Promise.all([fdb.doc("users/" + u.uid).set({name:nm, email, apps:{contour:true}}, {merge:true}), fdb.doc("directory/" + email).set({uid:u.uid, name:nm, trainer:isTrainer()})]);
+}
+async function cloudPush(){
+  if (!cuser || state.demo || viewing) return;
+  if (pushing){ pushDirty = true; return; } pushing = true; pushDirty = false;
+  const base = fdb.doc(`${APP}/users/${cuser.uid}`), {days, ...main} = state, byMonth = {};
+  for (const d of Object.keys(days)) if ((days[d] || []).length) (byMonth[d.slice(0,7)] = byMonth[d.slice(0,7)] || {})[d] = days[d];
+  const ops = [base.set({v:1, ts:state.ts, name:state.profile.name || "", json:JSON.stringify(main)})];
+  for (const m of new Set([...Object.keys(byMonth), ...Object.keys(monthSig)])){
+    const j = byMonth[m] ? JSON.stringify(byMonth[m]) : null; if (monthSig[m] === j) continue;
+    if (j){ monthSig[m] = j; ops.push(base.collection("months").doc(m).set({json:j, ts:state.ts})); } else { delete monthSig[m]; ops.push(base.collection("months").doc(m).delete()); }
+  }
+  ops.push(cloudDirectory());
+  let done = false; const all = Promise.all(ops);
+  all.then(() => { done = true; setSync("Synced"); }, e => { done = true; setSync(e && e.code === "permission-denied" ? "Sync was refused. Log out and in again." : "Saved on this device, will sync"); });
+  await Promise.race([all.catch(() => {}), new Promise(r => setTimeout(r, 6000))]);
+  if (!done) setSync("Saved on this device, will sync");
+  pushing = false; if (pushDirty) cloudPush();
+}
+const AUTH_COPY = {"auth/email-already-in-use":"An account already uses that email. Log in instead.", "auth/invalid-email":"That email address does not look right.", "auth/weak-password":"Use a password of at least 8 characters.", "auth/wrong-password":"That email or password is not right.", "auth/user-not-found":"That email or password is not right.", "auth/invalid-credential":"That email or password is not right.", "auth/invalid-login-credentials":"That email or password is not right.", "auth/too-many-requests":"Too many tries. Wait a few minutes and try again.", "auth/network-request-failed":"No connection. You need to be online to log in or create an account.", "auth/user-disabled":"This account has been turned off."};
+function cloudGate(){
+  if (access === "checking") return `<section class="card"><h1>Opening Contour</h1><p class="sub">One moment.</p></section>`;
+  let known = false; try { known = Object.keys(localStorage).some(k => k.startsWith(LOCAL_KEY + ":") && k !== LOCAL_KEY + ":adopted"); } catch(e){}
+  if (!authTab) authTab = known ? "login" : "signup";
+  const up = authTab === "signup";
+  return `<div><h1>${up ? "Create your account" : "Welcome back"}</h1><p class="sub">${up ? "One Pixora account keeps your data safe in the cloud and on every device you use." : "Log in to pick up where you left off."}</p></div>
+  <section class="card"><div class="seg" role="group" aria-label="Account"><button data-act="authtab" data-v="signup" aria-pressed="${up}">Create account</button><button data-act="authtab" data-v="login" aria-pressed="${!up}">Log in</button></div>
+    <form data-form="auth" style="display:flex;flex-direction:column;gap:12px">
+      ${up ? `<div class="seg" role="group" aria-label="Account type"><button type="button" data-act="authrole" data-v="member" aria-pressed="${authRole==="member"}">I track my own fitness</button><button type="button" data-act="authrole" data-v="trainer" aria-pressed="${authRole==="trainer"}">I am a trainer</button></div>
+      <label class="f">Your name<input id="a-name" type="text" maxlength="30" required autocomplete="name" style="font-size:16px"></label>` : ""}
+      <label class="f">Email<input id="a-email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label>
+      <label class="f">Password<input id="a-pw" type="password" required minlength="8" autocomplete="${up ? "new-password" : "current-password"}" style="font-size:16px">${up ? `<small>At least 8 characters.</small>` : ""}</label>
+      ${up ? `<label class="check"><input type="checkbox" id="a-age" required><span>I am 18 or older.</span></label>` : ""}
+      <div class="err" id="a-err"></div><button class="btn" id="a-go">${up ? "Create account" : "Log in"}</button></form>
+    ${up ? "" : `<button class="linkbtn" data-act="pw-reset" style="color:var(--scan);font-size:13.5px;align-self:flex-start">Forgot your password?</button>`}
+    <p class="sub">The same account works across Pixora apps. After the first login, Contour keeps working without a connection and syncs when it is back.</p></section>`;
+}
+async function cloudAuthSubmit(){
+  const err = $("#a-err"), btn = $("#a-go"), up = authTab === "signup", email = ($("#a-email").value || "").trim(), pw = $("#a-pw").value || "", name = up ? ($("#a-name").value || "").trim().slice(0,30) : "";
+  if (up && !name) return err.textContent = "Enter your name.";
+  if (!/^\S+@\S+\.\S+$/.test(email)) return err.textContent = "Enter your email address.";
+  if (pw.length < 8) return err.textContent = up ? "Use a password of at least 8 characters." : "Enter your password.";
+  if (up && !$("#a-age").checked) return err.textContent = "Contour is for adults aged 18 and over.";
+  if (offline()) return err.textContent = AUTH_COPY["auth/network-request-failed"];
+  btn.disabled = true; btn.textContent = "One moment…";
+  try {
+    if (up){ pendingName = name; pendingRole = authRole; const c = await firebase.auth().createUserWithEmailAndPassword(email, pw); try { await c.user.updateProfile({displayName:name}); } catch(e){} }
+    else { pendingRole = "member"; await firebase.auth().signInWithEmailAndPassword(email, pw); }
+  } catch(e){ const b = $("#a-go"), x = $("#a-err"); if (b){ b.disabled = false; b.textContent = up ? "Create account" : "Log in"; } if (x) x.textContent = AUTH_COPY[e && e.code] || "That did not work. Check your connection and try again."; }
+}
+async function cloudReset(){
+  const err = $("#a-err"), email = ($("#a-email").value || "").trim();
+  if (!/^\S+@\S+\.\S+$/.test(email)) return err.textContent = "Type your email above first, then tap Forgot your password.";
+  try { await firebase.auth().sendPasswordResetEmail(email); } catch(e){ if (e && e.code === "auth/network-request-failed") return err.textContent = AUTH_COPY[e.code]; }
+  err.style.color = "var(--muted)"; err.textContent = "If an account uses that email, a reset link is on its way. Check your spam folder too.";
+}
+async function cloudBecomeTrainer(name){
+  const units = state.profile.units;
+  state = freshState({name:String(name || "").trim().slice(0, 30) || "Trainer", role:"trainer", sex:"m", age:30, height:170, activity:1.375, pace:0, units, equip:"home", bmiScale:"standard"});
+  save(); closeSheet(); tab = "clients"; render(); cloudTrainerInit(); return true;
+}
+function cloudTrainerInit(){
+  if (!isTrainer() || !cuser || grantsUnsub) return;
+  grantsUnsub = fdb.collection(`${APP}/grants`).where("trainer", "==", cuser.uid).onSnapshot(snap => {
+    const list = []; snap.forEach(d => { const g = d.data() || {}; if (g.member) list.push({cid:String(g.member), name:String(g.memberName || "Member").slice(0, 30), since:String(g.since || "")}); });
+    clients = list.sort((a,b) => a.name.localeCompare(b.name)); if (tab === "clients" && !viewing) render();
+  }, () => { grantsUnsub = null; });
+}
+function cloudViewClients(){
+  return `<div><h1>Your clients</h1><p class="sub">${clients.length ? `${clients.length} member${clients.length > 1 ? "s share" : " shares"} a profile with you. Tap one to see their current food, workouts, scans and reports.` : "Nobody has shared with you yet."}</p></div>
+  ${clients.length ? `<section class="card"><h2>Shared with you</h2><div>${clients.map(c => `<button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span><b>${esc(c.name)}</b><small>${/^\d{4}-\d\d-\d\d$/.test(c.since) ? "sharing since " + shortD(c.since) : "sharing with you"}</small></span><small>Open</small></button>`).join("")}</div></section>` : ""}
+  <section class="card"><div><h2>How members share with you</h2><p class="sub">They open Profile, then Share with a trainer, and type your email:</p></div>
+    <div class="idbox" style="font-size:14px">${esc((cuser && cuser.email) || "")}</div>
+    <p class="sub">They appear here as soon as they share, and disappear if they stop. You always see their latest synced data, and you cannot change it.</p>
+    <div class="err" id="cl-msg">${esc(clientMsg)}</div></section>`;
+}
+async function cloudOpenClient(cid){
+  const c = clients.find(x => x.cid === cid); if (!c || viewing) return;
+  const m = $("#cl-msg"); if (m){ m.style.color = "var(--muted)"; m.textContent = `Loading ${c.name}…`; }
+  let snap = null; try { snap = await Promise.race([cloudLoad(cid), late(12000)]); } catch(e){}
+  if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : `${c.name}'s profile could not be loaded. They may have stopped sharing, or not synced yet.`; return render(); }
+  delete snap._sig; delete snap.share; delete snap.profile.role; snap.profile.units = state.profile.units; clientMsg = "";
+  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now()}; viewDate = null; tab = "today"; $("#view").scrollTop = 0; render();
+}
+function cloudShareBox(){
+  if (state.demo || isTrainer() || !cuser) return "";
+  const sh = state.share && state.share.cloud ? state.share : null;
+  return `<div class="owner" id="share-box"><div><h2>Share with a trainer</h2><p class="sub">${sh ? `Shared with ${esc(sh.name)} since ${shortD(sh.since)}. They see your current food log, workouts, scans, measurements and reports whenever they open your profile. They cannot change anything.` : "Give one trainer read-only access to your food log, workouts, scans, measurements, weight and reports. Enter the email they used for their Contour trainer account."}</p></div>
+    ${sh ? `<button type="button" class="btn alt" data-act="share-stop" style="color:var(--high)">Stop sharing with ${esc(sh.name)}</button>`
+         : `<label class="f">Trainer's email<input id="sh-email" type="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label><button type="button" class="btn alt" data-act="share-start">Share my profile</button>`}
+    <div class="err" id="sh-err" style="color:var(--muted)"></div></div>`;
+}
+async function cloudShareStart(el){
+  const email = ($("#sh-email").value || "").trim().toLowerCase(), say = t => { const e = $("#sh-err"); if (e){ e.style.color = "var(--high)"; e.textContent = t; } };
+  if (!/^\S+@\S+\.\S+$/.test(email)) return say("Enter your trainer's email address.");
+  if (email === (cuser.email || "").toLowerCase()) return say("That is your own email.");
+  if (offline()) return say("You are offline. Connect to start sharing.");
+  el.disabled = true;
+  try {
+    const d = await Promise.race([fdb.doc("directory/" + email).get(), late(10000)]), t = d.exists ? d.data() : null;
+    if (!t || !t.trainer || !t.uid){ el.disabled = false; return say("No trainer account uses that email. Ask them to create a Contour account as a trainer first."); }
+    await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today()}), late(10000)]);
+    state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); reShare(`${esc(t.name || email)} can now see your profile.`);
+  } catch(e){ el.disabled = false; say("Sharing could not be set up. Check your connection and try again."); }
+}
+async function cloudShareStop(){
+  const sh = state.share; if (!sh) return;
+  if (offline()) return reShare("You are offline. Connect to stop sharing.");
+  try { await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${sh.uid}`).delete(), late(10000)]); } catch(e){ return reShare("Sharing could not be stopped. Check your connection and try again."); }
+  delete state.share; save(); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
 }
 /* ---------- reports ---------- */
 let repDays = 7, repBody = true, dlFn = null;
@@ -1052,7 +1234,7 @@ function profileSheet(){
     <p class="sub">Your profile, scans and food log are private to you. This app is for adults and gives general fitness guidance, not medical advice.</p>
     <details><summary style="cursor:pointer;font-weight:600">Have an import code?</summary><label class="f" style="margin-top:8px">Paste it here<textarea id="imp-text" rows="3" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink);width:100%" placeholder="CONTOUR1:…"></textarea></label><button type="button" class="btn alt" data-act="import" style="margin-top:8px">Import profile and scan</button><div class="err" id="imp-err"></div></details>
     <details class="links"><summary style="cursor:pointer;font-weight:600">Where the data comes from</summary><p class="sub">Exercises: <a href="https://github.com/yuhonas/free-exercise-db">free-exercise-db</a>, public domain. Foods: <a href="https://fdc.nal.usda.gov/">USDA FoodData Central, SR Legacy</a>, public domain, plus a short list of common dishes with approximate values and foods added by people using this app. BMI and waist lines: <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/healthy-weights/canadian-guidelines-body-weight-classification-adults/quick-reference-tool-professionals.html">Health Canada body weight classification</a> and the <a href="https://pubmed.ncbi.nlm.nih.gov/14726171/">WHO expert consultation on Asian populations</a>. Body fat: US Navy circumference method.</p></details>
-  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${!isOwner && gateDoc && subtle ? `<button type="button" class="btn alt" data-act="logout">Log out</button>` : ""}${ownerPanel()}`);
+  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 function scanSheet(){
   const l = state.demo ? null : state.scans[state.scans.length-1], v = k => l && l[k] != null ? showLen(l[k]) : "";
@@ -1178,10 +1360,12 @@ const actions = {
   import(){ const e = applyImport($("#imp-text").value); if (e) return $("#imp-err").textContent = e; closeSheet(); tab = "scan"; render(); try { location.hash = "scan"; } catch(x){} },
   async "be-trainer"(){ const n = ($("#p-name").value || "").trim(); if (!n) return $("#p-err").textContent = "Enter your name first."; await becomeTrainer(n); },
   async "tr-copy"(el){ try { await navigator.clipboard.writeText(trainerId()); $("#tr-msg").textContent = "Copied. Send it to your client."; } catch(e){ $("#tr-msg").textContent = "Copying is blocked here. Press and hold the ID above to select it."; } },
-  "client-open"(el){ const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "today"; $("#view").scrollTop = 0; render(); },
+  "client-open"(el){ if (CLOUD) return cloudOpenClient(el.dataset.cid); const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "today"; $("#view").scrollTop = 0; render(); },
   "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
   async "cl-paste"(){ clientMsg = await importPkgText($("#cl-text").value) || "Added."; render(); },
+  "pw-reset"(){ cloudReset(); },
   async "share-start"(el){
+    if (CLOUD) return cloudShareStart(el);
     const t = parseTrainerId($("#sh-id").value); if (!t) return $("#sh-err").textContent = "That is not a valid Trainer ID. Paste the whole ID, starting with CONTOUR-TR.";
     el.disabled = true; state.share = {name:t.name, pub:t.pub, fp:await fpOf(t.pub), since:today(), live:false}; save();
     const live = await deliverShare(); reShare(live ? `${esc(t.name)} can now see your profile.` : "Sharing is set up. Create a share file and send it to your trainer.");
@@ -1191,11 +1375,11 @@ const actions = {
     if (dlFn) try { await dlFn.save({filename:`contour-share-${nm}-${today()}.json`, data:txt}); return reShare("Saved. Send that file to your trainer."); } catch(e){ if (e && e.code === "declined") return reShare("Save cancelled."); }
     reShare(`Copy this text and send it to your trainer.<br><textarea readonly rows="4" style="width:100%;margin-top:8px;font-size:12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px" aria-label="Share text">${esc(txt)}</textarea>`);
   },
-  async "share-stop"(){ const sh = state.share; if (!sh) return; if (sh.live && cloudDb && myId) try { await cloudDb.doc("shares/" + sh.fp + "_" + myId).delete(); } catch(e){} delete state.share; save(); reShare(sh.live ? "Sharing stopped. Your trainer can no longer see your profile." : "Sharing stopped. Files you already sent stay with your trainer."); },
+  async "share-stop"(){ if (CLOUD) return cloudShareStop(); const sh = state.share; if (!sh) return; if (sh.live && cloudDb && myId) try { await cloudDb.doc("shares/" + sh.fp + "_" + myId).delete(); } catch(e){} delete state.share; save(); reShare(sh.live ? "Sharing stopped. Your trainer can no longer see your profile." : "Sharing stopped. Files you already sent stay with your trainer."); },
   retry(){ access = "checking"; render(); initAccess(); },
   authtab(el){ authTab = el.dataset.v; render(); },
   authrole(el){ const n = $("#a-name") ? $("#a-name").value : "", c = $("#a-code") ? $("#a-code").value : ""; authRole = el.dataset.v; render(); if ($("#a-name")) $("#a-name").value = n; if ($("#a-code")) $("#a-code").value = c; },
-  logout(){ try { localStorage.removeItem(ACCESS_KEY); } catch(e){} groupKey = null; community = []; foodCache.clear(); authTab = "login"; closeSheet(); initAccess().then(render); render(); },
+  logout(){ if (CLOUD) return cloudLogout(); try { localStorage.removeItem(ACCESS_KEY); } catch(e){} groupKey = null; community = []; foodCache.clear(); authTab = "login"; closeSheet(); initAccess().then(render); render(); },
   async "code-new"(el){
     const item = {id:uid(), code:newCode(), label:($("#c-label").value || "").trim().slice(0,30), d:today()};
     el.disabled = true; ownerCodes.push(item); let bad = false;
@@ -1261,6 +1445,7 @@ const forms = {
     setTimeout(() => { scanning = false; const w = $("#figwrap"); if (w) w.classList.remove("scanning"); }, 1800);
   },
   async auth(){
+    if (CLOUD) return cloudAuthSubmit();
     const err = $("#a-err"), btn = $("#a-go"), up = authTab === "signup", code = normCode($("#a-code").value), name = up ? ($("#a-name").value || "").trim().slice(0,30) : "";
     if (Date.now() < lockUntil) return err.textContent = `Too many tries. Wait ${Math.ceil((lockUntil-Date.now())/1000)} seconds.`;
     if (up && !name) return err.textContent = "Enter your name.";
