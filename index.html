@@ -226,8 +226,8 @@ nav.tabs [data-tab="progress"]{display:none}
 #qr-reader{border-radius:14px;overflow:hidden;background:#000;min-height:220px}
 #qr-reader video{width:100%;display:block}
 #app:not(.trainer) nav.tabs [data-tab="clients"]{display:none}
-#app.trainer nav.tabs{grid-template-columns:1fr}
-#app.trainer nav.tabs button:not([data-tab="clients"]){display:none}
+#app.trainer nav.tabs{grid-template-columns:1fr 1fr}
+#app.trainer nav.tabs button:not([data-tab="clients"]):not([data-tab="texs"]){display:none}
 .ro #btn-profile,.ro .add,.ro .step button,.ro [data-act="newscan"],.ro [data-act="done"],.ro form[data-form="weight"]{display:none}
 .daynav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .daynav button{border:1px solid var(--line);background:none;border-radius:999px;width:38px;height:38px;font-size:18px}
@@ -237,6 +237,29 @@ nav.tabs [data-tab="progress"]{display:none}
 .client b{font-weight:600;display:block}
 .client small{color:var(--muted);font-size:12.5px}
 .idbox{background:var(--bg);border-radius:12px;padding:10px 12px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;overflow-wrap:anywhere;max-height:74px;overflow:auto}
+.fig .ghost{fill:none;stroke:var(--muted);stroke-width:1.2;stroke-dasharray:3 3;opacity:.7;pointer-events:none}
+.figkey{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.figkey span{display:inline-flex;align-items:center;gap:6px}
+.figkey i{display:inline-block;width:18px;height:0;border-top:1.5px dashed var(--muted)}
+.wins li::before{background:var(--good)}
+.excard{border-top:1px solid var(--line);padding:10px 0}
+.excard:first-of-type{border-top:0}
+.excard summary{cursor:pointer;list-style:none;display:flex;flex-direction:column;gap:3px}
+.excard summary::-webkit-details-marker{display:none}
+.excard summary b{font-weight:600}
+.excard summary small{color:var(--muted);font-size:12.5px}
+.excard .body{display:flex;flex-direction:column;gap:8px;margin-top:10px;font-size:13.5px}
+.excard .body ol{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:4px}
+.excard .warn{border-left:3px solid var(--watch);padding:2px 0 2px 10px}
+.author{display:inline-block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;background:var(--sunk);color:var(--scan);border-radius:999px;padding:2px 8px;margin-left:6px;vertical-align:2px}
+.author.mine{background:var(--scan);color:#fff}
+.f textarea,.f select{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font:inherit;font-size:16px;color:var(--ink);width:100%}
+.timer{font-family:var(--display);font-size:44px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums}
+.wkrow{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.wkrow input{width:22px;height:22px;accent-color:var(--good);margin-top:2px}
+.wkrow small{display:block;color:var(--muted)}
+#app:not(.cloudapp) nav.tabs [data-tab="texs"]{display:none}
+#app:not(.trainer) nav.tabs [data-tab="texs"]{display:none}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -255,6 +278,7 @@ nav.tabs [data-tab="progress"]{display:none}
     <button data-tab="progress" id="tab-progress"><svg viewBox="0 0 24 24"><path d="M4 19h16M5 15l4.5-4.5 3.5 3L19 7"/><path d="M15 7h4v4"/></svg>Progress</button>
     <button data-tab="reports" id="tab-reports"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M14 3.5v4h4M10 12h5M10 16h5"/></svg>Reports</button>
     <button data-tab="check" id="tab-check"><svg viewBox="0 0 24 24"><path d="M4 7V5.500A1.500 1.500 0 0 1 5.500 4H7M17 4h1.500A1.500 1.500 0 0 1 20 5.500V7M20 17v1.500a1.500 1.500 0 0 1-1.500 1.500H17M7 20H5.500A1.500 1.500 0 0 1 4 18.500V17M8 8v8M11 8v8M14 8v8M16.500 8v8"/></svg>Check</button>
+    <button data-tab="texs" id="tab-texs"><svg viewBox="0 0 24 24"><path d="M6.5 8v8M17.5 8v8M4 10v4M20 10v4M6.5 12h11"/></svg>Exercises</button>
     <button data-tab="clients" id="tab-clients"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.2 2.7-5 5.5-5s4.900 1.800 5.500 5M16 5.200a3.200 3.200 0 0 1 0 6M17.500 14.300c1.700.7 2.700 2.300 3 4.700"/></svg>Clients</button>
   </nav>
   <div id="sheet"><div class="panel" id="panel" role="dialog" aria-modal="true"></div></div>
@@ -266,7 +290,6 @@ nav.tabs [data-tab="progress"]{display:none}
 <script src="vendor/firebase-auth-compat.js"></script>
 <script src="vendor/firebase-firestore-compat.js"></script>
 <script src="data/cloud.js"></script>
-<script src="data/pixora-summary.js"></script>
 <script>
 "use strict";
 /* ---------- helpers ---------- */
@@ -400,7 +423,6 @@ function save(){
   const cutoff = daysAgo(180);
   for (const k of Object.keys(state.days)) if (k < cutoff) delete state.days[k];
   try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){}
-  dashKick();
   if (CLOUD) return cloudQueue();
   if (!cloudRef) return;
   clearTimeout(saveTimer); saveTimer = setTimeout(pushCloud, 700);
@@ -623,17 +645,17 @@ function figPaths(F){
   const out = {sil:cr(ws), f:side(FIGPTS.f), b:side(FIGPTS.b), half:Math.max(80, Math.max(...ws.map(q => Math.abs(q[0]-100))) + 8)};
   figCache.set(key, out); return out;
 }
-function figure({side="f", sel=[], fills={}, pick=false, shape=null}){
-  const FIG = figPaths(shape), h = FIG.half;
+function figure({side="f", sel=[], fills={}, pick=false, shape=null, act="pick"}){
+  const FIG = figPaths(shape), h = shape ? Math.max(FIG.half, figPaths(null).half) : FIG.half;
   const parts = Object.entries(FIG[side]).map(([k, ps]) => { const on = sel.includes(k), f = fills[k];
-    return `<g class="rg${pick?" pick":""}${on?" on":""}${f?" f-"+f:""}" data-region="${k}"${pick?` data-act="pick" tabindex="0" role="button" aria-pressed="${on}" aria-label="${esc(REGIONS[k].label)}"`:""}>${ps.map(d => `<path d="${d}"/>`).join("")}</g>`; }).join("");
-  return `<svg class="fig" viewBox="${(100-h).toFixed(0)} 4 ${(2*h).toFixed(0)} 438" role="img" aria-label="${side==="b"?"Back":"Front"} of body"><g class="nt"><ellipse cx="100" cy="30" rx="17" ry="22"/><path d="${FIG.sil}"/></g>${parts}</svg>`;
+    return `<g class="rg${pick?" pick":""}${on?" on":""}${f?" f-"+f:""}" data-region="${k}"${pick?` data-act="${act}" tabindex="0" role="button" aria-pressed="${on}" aria-label="${esc(REGIONS[k].label)}"`:""}>${ps.map(d => `<path d="${d}"/>`).join("")}</g>`; }).join("");
+  return `<svg class="fig" viewBox="${(100-h).toFixed(0)} 4 ${(2*h).toFixed(0)} 438" role="img" aria-label="${side==="b"?"Back":"Front"} of body"><g class="nt"><ellipse cx="100" cy="30" rx="17" ry="22"/><path d="${FIG.sil}"/></g>${parts}${shape ? `<path class="ghost" d="${figPaths(null).sil}"/>` : ""}</svg>`;
 }
 const myShape = () => state.demo && !state.scans.length ? null : shapeOf(state.scans[state.scans.length-1]);
 
 /* ---------- views ---------- */
 let tab = "today", scanning = false;
-const TABS = ["home","today","scan","focus","progress","reports","check","clients"];
+const TABS = ["texs","home","today","scan","focus","progress","reports","check","clients"];
 function banner(){
   if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
   return state.demo ? `<div class="banner"><span>These are example numbers so you can see how it works.</span><button data-act="profile">Use my numbers</button></div>` : "";
@@ -672,7 +694,7 @@ function viewHome(){
   const sc = state.scans[state.scans.length-1], wn = state.water[today()] || 0, sk = streak(), R = buildReport(7);
   const sign = v => (v > 0 ? "+" : "−") + Math.abs(v);
   return `${banner()}
-  ${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data now syncs to Pixora's cloud, and food photos go to Google Gemini. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
+  ${verifyCard()}${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data now syncs to Pixora's cloud, and food photos go to Google Gemini. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
   <div><h1>${viewing ? esc(viewing.name) + "'s day" : hi + (nm ? ", " + esc(nm) : "")}</h1><p class="sub">${dateLine}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
   <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${tg.kcal.toLocaleString()}</small></div>
     <div class="bar" style="height:8px"><i style="width:${pct}%;${left < 0 ? "background:var(--watch)" : ""}"></i></div>
@@ -684,8 +706,8 @@ function viewHome(){
     <button class="tile" data-act="nav" data-v="focus"><label>Today's workout</label><span class="num" style="font-size:19px">${esc(day.t)}</span><span class="sub">${done ? "Done ✓" : esc(day.s)}</span></button>
     <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
   </div>
-  <section class="card"><div class="row between"><h2>This week</h2><button class="backrow" data-act="nav" data-v="reports">Full report ›</button></div>
-    <ul class="hl">${R.hl.slice(0, 3).map(([st2, tx]) => `<li class="st-${st2}"><span>${esc(tx)}</span></li>`).join("")}</ul></section>`;
+  ${winsCard()}
+  <button class="btn alt" data-act="nav" data-v="reports">See your weekly report</button>`;
 }
 function streak(){ let n = 0; for (let i = 0; i < 400; i++){ const has = (state.days[daysAgo(i)] || []).length > 0; if (has) n++; else if (i > 0) break; } return n; }
 function healthCard(){
@@ -822,17 +844,18 @@ async function runPhotoScan(){
 function viewScan(){
   const R = scanReads(), p = state.profile;
   if (!R) return `${banner()}<div><h1>Scan your body</h1><p class="sub">Use photos, a tape measure or a gym machine. You get body fat, where you carry it, and a figure shaped like you.</p></div>
-    <section class="card"><div class="figwrap">${figure({})}</div><button class="btn" data-act="newscan">Start first scan</button></section>${bmiCard()}`;
+    <section class="card">${sideSeg()}<div class="figwrap">${figure({side:bodySide, pick:true, act:"part"})}</div><p class="sub">Tap a body part to see exercises for it.</p><button class="btn" data-act="newscan">Start first scan</button></section>${bmiCard()}`;
   const {s, whtr, whr, rows, d, fills} = R, bf = s.bf, band = bf != null ? bfBand(p.sex, bf) : null;
   const lean = bf != null ? s.kg*(1-bf/100) : null, wb = whtr ? whtrBand(whtr) : null, hb = whr ? whrBand(p.sex, whr) : null;
   const prev = state.scans.length > 1 ? state.scans[0] : null;
   const bfd = prev && prev.bf != null && bf != null ? r1(bf - prev.bf) : null;
   return `${banner()}
   <div><h1>${bf != null ? `${bf}% body fat` : "Your body overview"}</h1><p class="sub">${s.src === "photo" ? "Photo scan" : s.src ? "Gym machine scan" : "Tape scan"} ${shortD(s.d)} · ${state.scans.length} scan${state.scans.length > 1 ? "s" : ""} on record${bfd != null ? ` · ${bfd > 0 ? "+" : "−"}${Math.abs(bfd)} points since the first` : ""}</p></div>
-  <section class="card"><div class="overview">
-    <div class="figwrap${scanning ? " scanning" : ""}" id="figwrap">${figure({fills, shape:myShape()})}<div class="sweep"></div></div>
+  <section class="card">${sideSeg()}<div class="overview">
+    <div class="figwrap${scanning ? " scanning" : ""}" id="figwrap">${figure({side:bodySide, fills, shape:myShape(), pick:true, act:"part"})}<div class="sweep"></div></div>
     <div class="reads">${rows.map(([n,k]) => `<div class="read"><span>${n}</span><span class="v">${showLen(s[k])} ${lenU()}<span class="d">${d(k)}</span></span></div>`).join("")}</div>
   </div>
+  <div class="figkey"><span><i></i>Average build for your height</span><span>Tap a part for its exercises</span></div>
   <div class="row" style="flex-wrap:wrap"><span class="pill st-good">In range</span><span class="pill st-watch">Raised</span><span class="pill st-high">High</span><span class="pill" style="color:var(--scan)">Tracked</span></div>
   <button class="btn" data-act="newscan">New scan</button></section>
   <div class="stats">
@@ -881,9 +904,11 @@ function viewFocus(){
   <p class="note"><b>What this plan can and cannot do.</b> Training an area builds and firms the muscle there. Fat comes off the whole body through a calorie deficit, and your genetics decide the order. So the plan pairs targeted strength with cardio and the calorie target on Today.</p>
   <section class="card"><div class="row between"><h2>This week</h2><span class="sub">${wd.filter(d => state.done[d]).length} of 6 sessions done</span></div>
     <div class="week">${DOW.map((n,i) => `<div class="${i===ti?"now":""} ${state.done[wd[i]]?"ok":""}">${n}<i>${state.done[wd[i]] ? "✓" : parseD(wd[i]).getDate()}</i></div>`).join("")}</div>
-    <button class="btn ${state.done[today()] ? "alt" : ""}" data-act="done">${state.done[today()] ? "Undo today’s session" : `Mark today done: ${week[ti].t}`}</button>
+    ${!state.done[today()] && week[ti].ex.length && !viewing ? `<button class="btn" data-act="wk-start">Start today's workout: ${esc(week[ti].t)}</button>` : ""}
+    <button class="btn ${state.done[today()] || week[ti].ex.length ? "alt" : ""}" data-act="done">${state.done[today()] ? "Undo today’s session" : week[ti].ex.length ? "Mark done without the guide" : `Mark today done: ${week[ti].t}`}</button>
   </section>
   <section class="card">${week.map((dy,i) => `<details class="day${i===ti?" now":""}"${i===ti?" open":""}><summary><span class="dw">${DOW[i]}</span><span><b>${dy.t}</b><br><small>${esc(dy.s)}</small></span><small>${dy.ex.length ? dy.ex.length + (dy.ex.length>1?" moves":" block") : ""}</small></summary>${dy.ex.map(exRow).join("")}</details>`).join("")}</section>
+  ${trainerExCard()}
   ${library()}`;
 }
 
@@ -1007,7 +1032,7 @@ function trainerSheet(){
   <form data-form="tname" style="display:flex;flex-direction:column;gap:12px"><label class="f">Name your clients will see<input id="t-name" type="text" maxlength="30" required value="${esc(state.profile.name || "")}" style="font-size:16px"></label>
     <div class="seg" role="group" aria-label="Units"><button type="button" data-act="units" data-v="metric" aria-pressed="${!imp()}">kg · cm</button><button type="button" data-act="units" data-v="imperial" aria-pressed="${imp()}">lb · in</button></div>
     <button class="btn">Save</button>${CLOUD ? "" : `<p class="sub">Changing your name changes your Trainer ID text, but IDs you already sent keep working.</p>`}</form>
-  ${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
+  ${CLOUD && cuser ? `<div class="owner"><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export my data</button><button type="button" class="btn alt" data-act="del-open" style="color:var(--high)">Delete account</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div></div>` : ""}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 /* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
 const APP = "apps/contour";
@@ -1069,40 +1094,18 @@ async function cloudEnter(u){
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
     if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  myId = u.uid; cloudFoods(); cloudTrainerInit(); dashKick(2000);
-}
-
-/* ---------- Pixora Today dashboard ----------
-   A short summary of your own day, encrypted on this phone to your own dashboard's key (see data/pixora-summary.js).
-   Only your dashboard can open it. Never sent while a trainer is viewing a client, for trainer accounts, or for the demo. */
-function dashSummary(){
-  const t = today(), tot = dayTotals(t), tg = targets(state.profile, curKg());
-  const wd = weekDates(), ti = wd.indexOf(t), plan = buildWeek()[ti] || {};
-  const W = state.weights, wl = W[W.length-1], w30 = [...W].reverse().find(x => x.d <= daysAgo(30));
-  return {
-    d:t, kcal:Math.round(tot.kcal), target:tg.kcal, p:Math.round(tot.p), pTarget:Math.round(tg.p),
-    loggedToday:(state.days[t] || []).length > 0, streak:streak(),
-    workout:{done:wd.filter(d => state.done[d]).length, of:6, today:plan.t && plan.t !== "Rest" ? plan.t : "", doneToday:!!state.done[t]},
-    weight: wl ? {kg:wl.kg, d:wl.d, u:imp() ? "lb" : "kg", ch30: w30 ? Math.round((wl.kg - w30.kg)*10)/10 : null} : null
-  };
-}
-function dashKick(ms){
-  if (!window.PixoraSummary) return;
-  PixoraSummary.schedule("contour", () => {
-    if (!fdb || !cuser || !state || state.demo || viewing || isTrainer()) return null;
-    return {fdb, uid:cuser.uid, build:dashSummary};
-  }, ms);
+  myId = u.uid; cloudFoods(); cloudTrainerInit(); cloudTexInit(true);
 }
 function cloudLeave(){
-  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; community = []; myId = null;
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
   clearTimeout(pushTimer); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
 function cloudLogout(){ closeSheet(); authTab = "login"; firebase.auth().signOut().catch(() => {}); }
 function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
 function cloudDirectory(){
-  const u = cuser, email = (u.email || "").toLowerCase(), nm = state.profile.name || "", hj = JSON.stringify(state.profile.health || null), sig = JSON.stringify([nm, isTrainer(), hj]);
+  const u = cuser, email = (u.email || "").toLowerCase(), nm = state.profile.name || "", hj = JSON.stringify(state.profile.health || null), tr = isTrainer() && !!u.emailVerified, sig = JSON.stringify([nm, tr, hj]);
   if (!email || sig === lastDir) return Promise.resolve(); lastDir = sig;
-  return Promise.all([fdb.doc("users/" + u.uid).set({name:nm, email, apps:{contour:true}, contourHealth:hj}, {merge:true}), fdb.doc("directory/" + email).set({uid:u.uid, name:nm, trainer:isTrainer()})]);
+  return Promise.all([fdb.doc("users/" + u.uid).set({name:nm, email, apps:{contour:true}, contourHealth:hj}, {merge:true}), fdb.doc("directory/" + email).set({uid:u.uid, name:nm, trainer:tr})]);
 }
 async function cloudPush(){
   if (!cuser || state.demo || viewing) return;
@@ -1150,7 +1153,7 @@ async function cloudAuthSubmit(){
   if (offline()) return err.textContent = AUTH_COPY["auth/network-request-failed"];
   btn.disabled = true; btn.textContent = "One moment…";
   try {
-    if (up){ pendingName = name; pendingRole = authRole; pendingAck = true; const c = await firebase.auth().createUserWithEmailAndPassword(email, pw); try { await c.user.updateProfile({displayName:name}); } catch(e){} }
+    if (up){ pendingName = name; pendingRole = authRole; pendingAck = true; const c = await firebase.auth().createUserWithEmailAndPassword(email, pw); try { await c.user.updateProfile({displayName:name}); } catch(e){} c.user.sendEmailVerification().catch(() => {}); }
     else { pendingRole = "member"; await firebase.auth().signInWithEmailAndPassword(email, pw); }
   } catch(e){ const b = $("#a-go"), x = $("#a-err"); if (b){ b.disabled = false; b.textContent = up ? "Create account" : "Log in"; } if (x) x.textContent = AUTH_COPY[e && e.code] || "That did not work. Check your connection and try again."; }
 }
@@ -1163,7 +1166,7 @@ async function cloudReset(){
 async function cloudBecomeTrainer(name){
   const units = state.profile.units;
   state = freshState({name:String(name || "").trim().slice(0, 30) || "Trainer", role:"trainer", sex:"m", age:30, height:170, activity:1.375, pace:0, units, equip:"home", bmiScale:"standard"});
-  save(); closeSheet(); tab = "clients"; render(); cloudTrainerInit(); return true;
+  save(); closeSheet(); tab = "clients"; render(); cloudTrainerInit(); cloudTexInit(true); return true;
 }
 function cloudTrainerInit(){
   if (!isTrainer() || !cuser || grantsUnsub) return;
@@ -1173,7 +1176,7 @@ function cloudTrainerInit(){
   }, () => { grantsUnsub = null; });
 }
 function cloudViewClients(){
-  return `<div><h1>Your clients</h1><p class="sub">${clients.length ? `${clients.length} member${clients.length > 1 ? "s share" : " shares"} a profile with you. Tap one to see their current food, workouts, scans and reports.` : "Nobody has shared with you yet."}</p></div>
+  return `${trainerVerifyCard()}<div><h1>Your clients</h1><p class="sub">${clients.length ? `${clients.length} member${clients.length > 1 ? "s share" : " shares"} a profile with you. Tap one to see their current food, workouts, scans and reports.` : "Nobody has shared with you yet."}</p></div>
   ${clients.length ? `<section class="card"><h2>Shared with you</h2><div>${clients.map(c => `<button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span><b>${esc(c.name)}</b><small>${/^\d{4}-\d\d-\d\d$/.test(c.since) ? "sharing since " + shortD(c.since) : "sharing with you"}</small></span><small>Open</small></button>`).join("")}</div></section>` : ""}
   <section class="card"><div><h2>How members share with you</h2><p class="sub">They open Profile, then Share with a trainer, and type your email:</p></div>
     <div class="idbox" style="font-size:14px">${esc((cuser && cuser.email) || "")}</div>
@@ -1206,14 +1209,14 @@ async function cloudShareStart(el){
     const d = await Promise.race([fdb.doc("directory/" + email).get(), late(10000)]), t = d.exists ? d.data() : null;
     if (!t || !t.trainer || !t.uid){ el.disabled = false; return say("No trainer account uses that email. Ask them to create a Contour account as a trainer first."); }
     await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today()}), late(10000)]);
-    state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); reShare(`${esc(t.name || email)} can now see your profile.`);
+    state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); cloudTexInit(true); reShare(`${esc(t.name || email)} can now see your profile.`);
   } catch(e){ el.disabled = false; say("Sharing could not be set up. Check your connection and try again."); }
 }
 async function cloudShareStop(){
   const sh = state.share; if (!sh) return;
   if (offline()) return reShare("You are offline. Connect to stop sharing.");
   try { await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${sh.uid}`).delete(), late(10000)]); } catch(e){ return reShare("Sharing could not be stopped. Check your connection and try again."); }
-  delete state.share; save(); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
+  delete state.share; save(); cloudTexInit(true); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
 }
 /* ---------- health details ---------- */
 const ALLERGENS = [["milk","Milk"],["eggs","Eggs"],["peanuts","Peanuts"],["nuts","Tree nuts"],["gluten","Gluten or wheat"],["soybeans","Soy"],["fish","Fish"],["crustaceans","Shellfish"],["sesame-seeds","Sesame"],["mustard","Mustard"]];
@@ -1417,6 +1420,203 @@ async function deviceScan(front, side){
   if (sd.facing) throw {code:"bad_photo", message:"The second photo should be taken from the side."};
   return {ok:true, confidence:"", front:f, side:sd};
 }
+/* ---------- weekly wins: only goals actually reached ---------- */
+function weeklyWins(n){
+  n = n || 7; const dates = [...Array(n)].map((_, i) => daysAgo(n-1-i)), from = dates[0], tg = targets(state.profile, curKg()), tots = dates.map(dayTotals), W = [];
+  const need = Math.ceil(n*4/7), onCal = tots.filter(t => t.kcal > 0 && Math.abs(t.kcal - tg.kcal) <= tg.kcal*0.1).length;
+  if (onCal >= need) W.push(`Hit your calorie target on ${onCal} of ${n} days.`);
+  const onP = tots.filter(t => t.kcal > 0 && t.p >= tg.p*0.9).length; if (onP >= need) W.push(`Reached your protein target on ${onP} days.`);
+  if (tots.every(t => t.kcal > 0)) W.push(n === 7 ? "Logged your food every day this week." : `Logged your food all ${n} days.`);
+  const done = dates.filter(d => state.done[d]).length, planned = Math.round(n/7*6);
+  if (done >= planned) W.push(`Finished all ${planned} planned workouts.`); else if (done >= Math.ceil(planned/2)) W.push(`Completed ${done} workouts.`);
+  const wat = dates.filter(d => (state.water[d] || 0) >= WATER_GOAL).length; if (wat >= need) W.push(`Drank ${WATER_GOAL} glasses of water on ${wat} days.`);
+  const g = state.profile.goalKg, ws = state.weights || [], now = ws[ws.length-1], before = [...ws].reverse().find(x => x.d < from) || ws.find(x => x.d >= from);
+  if (g && now && before && now !== before && now.d >= from){
+    const gap0 = Math.abs(before.kg - g), gap1 = Math.abs(now.kg - g);
+    if (gap1 < 0.3 && gap0 >= 0.3) W.push(`Reached your goal weight of ${showWt(g)} ${wtU()}.`);
+    else if (gap0 - gap1 >= 0.2) W.push(`Moved ${showWt(gap0 - gap1)} ${wtU()} closer to your goal weight.`);
+  }
+  const sc = state.scans || [], last = sc[sc.length-1], prevS = [...sc].reverse().find(x => x.d < from);
+  if (last && last.d >= from && prevS){
+    if (last.waist && prevS.waist && prevS.waist - last.waist >= 0.5) W.push(`Waist down ${showLen(prevS.waist - last.waist)} ${lenU()} since your scan before this period.`);
+    if (last.bf != null && prevS.bf != null && prevS.bf - last.bf >= 0.5) { const bd = r1(prevS.bf - last.bf); W.push(`Body fat down ${bd} point${bd === 1 ? "" : "s"}.`); }
+  }
+  return W;
+}
+function winsCard(n){
+  if (state.demo && CLOUD) return ""; const W = weeklyWins(n); if (!W.length) return "";
+  return `<section class="card"><h2>${n === 30 ? "This month's wins" : "This week's wins"}</h2><ul class="hl wins">${W.map(t => `<li class="st-good"><span>${esc(t)}</span></li>`).join("")}</ul></section>`;
+}
+/* ---------- export ---------- */
+async function saveFile(name, text, sel){
+  const m = $(sel);
+  if (dlFn) try { await dlFn.save({filename:name, data:text}); if (m) m.textContent = "Saved."; return; } catch(e){ if (e && e.code === "declined"){ if (m) m.textContent = "Save cancelled."; return; } }
+  if (m) m.innerHTML = `Saving files is blocked here. Copy the text below instead.<textarea readonly rows="6" style="width:100%;margin-top:8px;font-size:12px;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:8px" aria-label="Exported data">${esc(text.slice(0, 200000))}</textarea>`;
+}
+function exportData(kind){
+  const stamp = today(), nm = (state.profile.name || "me").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  if (kind === "csv"){
+    const q = v => { v = String(v == null ? "" : v); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; }, rows = [["date","meal","food","serving","servings","kcal","protein_g","carbs_g","fat_g"]];
+    for (const d of Object.keys(state.days || {}).sort()) for (const e of state.days[d] || []) rows.push([d, e.meal, e.name, e.serv, e.qty, Math.round(e.kcal*e.qty), r1(e.p*e.qty), r1(e.c*e.qty), r1(e.f*e.qty)]);
+    return saveFile(`contour-food-log-${nm}-${stamp}.csv`, rows.map(r => r.map(q).join(",")).join("\n"), "#ex-msg");
+  }
+  const {_sig, ...keep} = plain(state);
+  return saveFile(`contour-export-${nm}-${stamp}.json`, JSON.stringify({app:"Contour", exported:new Date().toISOString(), account:cuser ? cuser.email : undefined, data:keep}, null, 2), "#ex-msg");
+}
+/* ---------- body parts: what you measure there and how to train it ---------- */
+let bodySide = "f";
+const sideSeg = () => `<div class="seg" role="group" aria-label="View" style="align-self:flex-start"><button data-act="body-side" data-v="f" aria-pressed="${bodySide==="f"}">Front</button><button data-act="body-side" data-v="b" aria-pressed="${bodySide==="b"}">Back</button></div>`;
+const PART_MEAS = {chest:[["Chest","chest"]], back:[["Chest","chest"]], belly:[["Waist","waist"]], waist:[["Waist","waist"]], lowerback:[["Waist","waist"]], hips:[["Hips","hip"]], glutes:[["Hips","hip"]], thighs:[["Thigh","thigh"]], hamstrings:[["Thigh","thigh"]], arms:[["Upper arm","arm"]]};
+const PART_SEG = {arms:["la","ra"], thighs:["ll","rl"], hamstrings:["ll","rl"], calves:["ll","rl"], hips:["ll","rl"], glutes:["ll","rl"], chest:["torso"], back:["torso"], belly:["torso"], waist:["torso"], lowerback:["torso"], shoulders:["torso"]};
+function partSheet(k){
+  const R = REGIONS[k]; if (!R) return; const sc = state.scans || [], last = sc[sc.length-1], first = sc[0], eq = state.profile.equip === "gym" ? "gym" : "home", inFocus = state.focus.includes(k);
+  const meas = (PART_MEAS[k] || []).filter(([,f]) => last && last[f] != null).map(([l,f]) => { const ch = first && first !== last && first[f] != null ? last[f]-first[f] : null;
+    return `<div class="read"><span>${l}</span><span class="v">${showLen(last[f])} ${lenU()}${ch != null ? `<span class="d">${Math.abs(ch) < 0.05 ? "no change" : (ch > 0 ? "+" : "−") + showLen(Math.abs(ch)) + " " + lenU()} since first scan</span>` : ""}</span></div>`; }).join("");
+  const seg = last && last.seg ? (PART_SEG[k] || []).filter(x => last.seg[x]).map(x => { const g2 = last.seg[x], lab = (SEG.find(y => y[0] === x) || [0, x])[1];
+    return `<div class="read"><span>${lab}</span><span class="v">${g2.fat != null ? `fat ${showWt(g2.fat)} ${wtU()}` : ""}${g2.lean != null ? `<span class="d">lean ${showWt(g2.lean)} ${wtU()}</span>` : ""}</span></div>`; }).join("") : "";
+  const tex = texVisible().filter(x => x.regions.includes(k));
+  const plan = (R[eq] || []).map(x => { const [n, dose, cue] = x.split("|"); return `<div class="ex" style="padding-left:0"><b>${esc(n)}</b> <span class="dose">${esc(dose)}</span><small>${esc(cue)}</small></div>`; }).join("");
+  const db = Array.isArray(window.EXDB) ? window.EXDB : [], lv = ["Beginner","Intermediate","Expert"];
+  const more = db.filter(x => x[1] === k && (eq === "gym" || HOME_EQ.includes(x[2]))).sort((a,b) => a[3]-b[3]).slice(0, 6);
+  openSheet(`${head(esc(R.label))}
+    ${meas || seg ? `<div class="reads">${meas}${seg}</div>` : `<p class="sub">${last ? "Your scans have no measurement for this part yet." : "Add a scan to track this part over time."}</p>`}
+    <p class="note">Training ${esc(R.label.toLowerCase())} builds and firms the muscle there. Fat comes off the whole body with a calorie deficit, not from one spot.</p>
+    ${viewing ? "" : `<button class="btn ${inFocus ? "alt" : ""}" data-act="part-focus" data-region="${k}">${inFocus ? "In your weekly plan · remove" : "Add to my weekly plan"}</button><div class="err" id="pf-msg"></div>`}
+    ${tex.length ? `<div class="lib"><h2>From trainers</h2>${tex.map(exCard).join("")}</div>` : ""}
+    ${plan ? `<div><h2>Core moves, ${eq === "gym" ? "gym" : "at home"}</h2>${plan}</div>` : ""}
+    ${more.length ? `<div class="lib"><h2>More from the library</h2>${more.map(x => `<details><summary><b>${esc(x[0])}</b><small>${esc(x[2] === "none" ? "no equipment" : x[2])} · ${lv[x[3]] ? lv[x[3]].toLowerCase() : ""}</small></summary><p>${esc(x[6] || "") || "No written steps for this one."}</p></details>`).join("")}</div>` : ""}`);
+}
+/* ---------- guided workout ---------- */
+let wkTimer = null;
+function workoutSheet(){
+  const wd = weekDates(), day = buildWeek()[wd.indexOf(today())]; if (!day) return;
+  openSheet(`${head(esc(day.t))}<p class="sub">${esc(day.s || "")}${day.s ? ". " : ""}Tick each move as you finish it, and use the timer between sets.</p>
+    <div>${day.ex.map((x, i) => { const [n, dose, cue, tag] = x.split("|"); return `<label class="wkrow"><input type="checkbox" data-wk="${i}"><span><b>${esc(n)}</b>${tag ? ` <span class="tag">${esc(tag)}</span>` : ""}<small>${esc(cue || "")}</small></span><span style="color:var(--scan);font-weight:600;font-size:13px">${esc(dose || "")}</span></label>`; }).join("")}</div>
+    <div class="card" style="background:var(--bg);align-items:center"><span class="sub">Rest timer</span><div class="timer" id="wk-timer" aria-live="polite">0:00</div><div class="row">${[45,60,90].map(n => `<button class="btn alt" data-act="wk-rest" data-s="${n}" style="width:auto">${n} s</button>`).join("")}</div></div>
+    <div class="err" id="wk-msg"></div><button class="btn" data-act="wk-finish">Finish workout</button>`);
+}
+function restTimer(sec){
+  clearInterval(wkTimer); const end = Date.now() + sec*1000;
+  const tick = () => { const left = Math.max(0, Math.round((end - Date.now())/1000)), e = $("#wk-timer"); if (!e){ clearInterval(wkTimer); wkTimer = null; return; }
+    e.textContent = left ? `${Math.floor(left/60)}:${String(left%60).padStart(2, "0")}` : "Go";
+    if (!left){ clearInterval(wkTimer); wkTimer = null; try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(x){} } };
+  tick(); wkTimer = setInterval(tick, 250);
+}
+/* ---------- exercises written by trainers (Pixora cloud) ---------- */
+let texAll = new Map(), texUnsubs = [], texMsg = "";
+const TEX_EQ = ["None (bodyweight)","Dumbbells","Barbell","Kettlebell","Resistance bands","Cable machine","Machine","Bench","Pull-up bar","Medicine ball","Other"];
+const TEX_LV = ["Beginner","Intermediate","Advanced"], TEX_TYPE = ["Strength","Cardio","Mobility or stretch","Plyometric","Core and stability"];
+function texStop(){ texUnsubs.forEach(f => { try { f(); } catch(e){} }); texUnsubs = []; }
+function texParse(id, x){
+  if (!x || typeof x.name !== "string") return null; let d = {}; try { d = JSON.parse(x.json || "{}") || {}; } catch(e){}
+  return {id, by:String(x.by || ""), authorName:String(x.authorName || "Trainer").slice(0, 30), name:x.name.slice(0, 80), regions:(Array.isArray(x.regions) ? x.regions : []).filter(k => REGIONS[k]), vis:x.vis === "all" ? "all" : "clients", at:+x.at || 0, d};
+}
+function cloudTexInit(reset){
+  if (!CLOUD || !fdb || !cuser) return; if (reset){ texStop(); texAll = new Map(); }
+  if (texUnsubs.length) return;
+  const listen = (q, tag) => texUnsubs.push(q.onSnapshot(snap => {
+    for (const [id, x] of [...texAll]) if (x._src === tag) texAll.delete(id);
+    snap.forEach(dd => { const x = texParse(dd.id, dd.data()); if (x){ x._src = tag; texAll.set(dd.id, x); } });
+    if (["texs","focus"].includes(tab) && !$("#sheet").classList.contains("open")) render();
+  }, () => {}));
+  const col = fdb.collection(`${APP}/exercises`);
+  if (isTrainer()) listen(col.where("by", "==", cuser.uid), "mine");
+  else { listen(col.where("vis", "==", "all"), "all"); if (state.share && state.share.cloud && state.share.uid) listen(col.where("by", "==", state.share.uid), "trainer"); }
+}
+function texVisible(){
+  const tr = state.share && state.share.uid;
+  return [...texAll.values()].sort((a, b) => ((b.by === tr) - (a.by === tr)) || (b.at - a.at));
+}
+function exCard(x){
+  const d = x.d || {}, mine = cuser && x.by === cuser.uid, yours = state.share && x.by === state.share.uid;
+  const dose = [d.sets && d.reps ? `${d.sets} × ${d.reps}` : d.reps || (d.sets ? d.sets + " sets" : ""), d.rest ? `rest ${d.rest} s` : "", d.tempo ? `tempo ${d.tempo}` : ""].filter(Boolean).join(" · ");
+  const meta = [x.regions.map(k => REGIONS[k].label).join(", "), d.equipment, d.level, d.type].filter(Boolean).join(" · ");
+  const steps = String(d.steps || "").split("\n").map(t => t.trim()).filter(Boolean);
+  const block = (label, text, cls) => text ? `<div${cls ? ` class="${cls}"` : ""}><b>${label}</b><br>${esc(text).replace(/\n/g, "<br>")}</div>` : "";
+  const video = /^https:\/\/\S+$/.test(d.video || "") ? `<a href="${esc(d.video)}" target="_blank" rel="noopener noreferrer" style="color:var(--scan);font-weight:600">Watch the demo video</a>` : "";
+  return `<details class="excard"><summary><b>${esc(x.name)}<span class="author${yours || mine ? " mine" : ""}">By ${esc(x.authorName.split(" ")[0])}</span></b><small>${esc(meta)}${dose ? " · " + esc(dose) : ""}</small></summary><div class="body">
+    ${d.muscles ? `<div><b>Muscles worked</b><br>${esc(d.muscles)}</div>` : ""}
+    ${steps.length ? `<div><b>How to do it</b><ol>${steps.map(t => `<li>${esc(t)}</li>`).join("")}</ol></div>` : ""}
+    ${block("Form cues", d.cues)}${block("Common mistakes", d.mistakes)}${block("Safety", d.safety, "warn")}${block("Easier version", d.easier)}${block("Harder version", d.harder)}${video}
+    ${mine && tab === "texs" ? `<div class="row"><button class="btn alt" data-act="tex-edit" data-id="${esc(x.id)}" style="width:auto">Edit</button><button class="btn alt" data-act="tex-del" data-id="${esc(x.id)}" style="width:auto;color:var(--high)">Delete</button></div>` : ""}
+  </div></details>`;
+}
+function trainerExCard(){
+  if (!CLOUD || viewing) return ""; const all = texVisible(); if (!all.length) return "";
+  const foc = state.focus.length ? state.focus : [], hit = all.filter(x => x.regions.some(k => foc.includes(k))), show = (hit.length ? hit : all).slice(0, 12);
+  const tr = state.share && state.share.uid && all.some(x => x.by === state.share.uid);
+  return `<section class="card lib"><div><h2>From trainers</h2><p class="sub">${tr ? `Exercises from ${esc(state.share.name)} come first.` : "Exercises written by trainers using Contour."}${hit.length ? " Showing ones for your chosen areas." : ""}</p></div>${show.map(exCard).join("")}</section>`;
+}
+function verifyCard(){
+  if (!CLOUD || !cuser || cuser.emailVerified || state.demo || viewing || state.verifyHide) return "";
+  return `<section class="card"><div><h2>Confirm your email</h2><p class="sub">We sent a link to ${esc(cuser.email || "")}. Confirming it keeps password resets working and protects your account.</p></div>
+    <div class="grid2"><button class="btn alt" data-act="vf-check">I've confirmed it</button><button class="btn alt" data-act="vf-send">Send it again</button></div><div class="err" id="vf-msg" style="color:var(--muted)"></div><button class="linkbtn" data-act="vf-hide" style="color:var(--muted);font-size:12.5px;align-self:flex-start">Hide this</button></section>`;
+}
+function trainerVerifyCard(){
+  if (!CLOUD || !cuser || cuser.emailVerified) return "";
+  return `<section class="card" style="border:1px solid var(--watch)"><div><h2>Confirm your email first</h2><p class="sub">Members cannot find you, and you cannot publish exercises, until you confirm ${esc(cuser.email || "")}. Open the link we emailed you, then tap below.</p></div>
+    <div class="grid2"><button class="btn" data-act="vf-check">I've confirmed it</button><button class="btn alt" data-act="vf-send">Send it again</button></div><div class="err" id="vf-msg" style="color:var(--muted)"></div></section>`;
+}
+function viewTexs(){
+  const mine = [...texAll.values()].filter(x => cuser && x.by === cuser.uid).sort((a, b) => b.at - a.at);
+  return `${trainerVerifyCard()}<div><h1>Your exercises</h1><p class="sub">Exercises you write show in your clients' Plan and when they tap that body part, tagged with your first name.</p></div>
+    <section class="card"><button class="btn" data-act="tex-new" ${cuser && cuser.emailVerified ? "" : "disabled"}>Write a new exercise</button><div class="err" id="tex-msg">${esc(texMsg)}</div></section>
+    ${mine.length ? `<section class="card lib"><h2>${mine.length} exercise${mine.length > 1 ? "s" : ""}</h2>${mine.map(exCard).join("")}</section>` : `<p class="note">Nothing here yet. Write the moves you teach most, with the cues you give in person.</p>`}`;
+}
+function texSheet(id){
+  const x = id ? texAll.get(id) : null, d = (x && x.d) || {}, regs = x ? x.regions : [];
+  const sel = (fid, label, opts, cur) => `<label class="f">${label}<select id="${fid}">${opts.map(o => `<option${o === cur ? " selected" : ""}>${esc(o)}</option>`).join("")}</select></label>`;
+  const ta = (fid, label, val, ph, rows) => `<label class="f">${label}<textarea id="${fid}" rows="${rows || 3}" maxlength="1500" placeholder="${esc(ph || "")}">${esc(val || "")}</textarea></label>`;
+  const tx = (fid, label, val, ph, max) => `<label class="f">${label}<input id="${fid}" type="text" maxlength="${max || 80}" value="${esc(val || "")}" placeholder="${esc(ph || "")}"></label>`;
+  openSheet(`${head(x ? "Edit exercise" : "New exercise")}
+  <form data-form="tex" data-id="${esc(id || "")}" style="display:flex;flex-direction:column;gap:12px">
+    ${tx("tx-name", "Name", x && x.name, "Goblet squat")}
+    <div class="f">Body parts it trains<div class="chips" style="margin-top:6px">${Object.keys(REGIONS).map(k => `<label class="chip ck"><input type="checkbox" data-txr value="${k}" ${regs.includes(k) ? "checked" : ""}>${esc(REGIONS[k].label)}</label>`).join("")}</div></div>
+    ${tx("tx-mus", "Muscles worked", d.muscles, "Quads, glutes, core", 120)}
+    <div class="grid2">${sel("tx-eq", "Equipment", TEX_EQ, d.equipment || TEX_EQ[0])}${sel("tx-lv", "Level", TEX_LV, d.level || TEX_LV[0])}</div>
+    ${sel("tx-type", "Type", TEX_TYPE, d.type || TEX_TYPE[0])}
+    <div class="grid2">${tx("tx-sets", "Sets", d.sets, "3", 10)}${tx("tx-reps", "Reps or time", d.reps, "8–12 or 30 s", 20)}</div>
+    <div class="grid2">${tx("tx-rest", "Rest (seconds)", d.rest, "60", 4)}${tx("tx-tempo", "Tempo (optional)", d.tempo, "3-1-1", 20)}</div>
+    ${ta("tx-steps", "How to do it, one step per line", d.steps, "Hold the dumbbell at your chest\nSit your hips back and down\nDrive up through your whole foot", 5)}
+    ${ta("tx-cues", "Form cues", d.cues, "Chest up, knees track over toes")}
+    ${ta("tx-mist", "Common mistakes", d.mistakes, "Heels lifting, knees caving in")}
+    ${ta("tx-safe", "Safety and who should skip it", d.safety, "Go shallower or skip with knee pain")}
+    <div class="grid2">${ta("tx-easy", "Easier version", d.easier, "Box squat", 2)}${ta("tx-hard", "Harder version", d.harder, "Pause at the bottom", 2)}</div>
+    ${tx("tx-video", "Demo video link (optional)", d.video, "https://youtube.com/…", 300)}
+    <div class="f">Who can see it</div>
+    <label class="check"><input type="radio" name="tx-vis" value="clients" ${x && x.vis === "all" ? "" : "checked"}><span>Only members who share their profile with me</span></label>
+    <label class="check"><input type="radio" name="tx-vis" value="all" ${x && x.vis === "all" ? "checked" : ""}><span>Everyone using Contour</span></label>
+    <div class="err" id="tx-err"></div><button class="btn" id="tx-go">${x ? "Save changes" : "Publish exercise"}</button></form>`);
+}
+async function cloudDeleteAccount(){
+  const err = $("#del-err"), btn = $("#del-go"), pw = ($("#del-pw") || {}).value || "", u = cuser;
+  if (!$("#del-ok").checked) return err.textContent = "Tick the box to confirm.";
+  if (!pw) return err.textContent = "Enter your password.";
+  if (offline()) return err.textContent = "You need a connection to delete your account.";
+  btn.disabled = true; btn.textContent = "Deleting…";
+  try { await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, pw)); }
+  catch(e){ btn.disabled = false; btn.textContent = "Delete my account"; return err.textContent = e && e.code === "auth/network-request-failed" ? AUTH_COPY[e.code] : "That password is not right."; }
+  const uid = u.uid, email = (u.email || "").toLowerCase();
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); clearTimeout(pushTimer);
+  const each = q => q.get().then(sn => { const a = []; sn.forEach(dd => a.push(dd.ref.delete())); return Promise.all(a); });
+  try {
+    await Promise.all([each(fdb.collection(`${APP}/users/${uid}/months`)), each(fdb.collection(`${APP}/grants`).where("member", "==", uid)), each(fdb.collection(`${APP}/grants`).where("trainer", "==", uid)),
+      each(fdb.collection(`${APP}/foods`).where("by", "==", uid)), each(fdb.collection(`${APP}/exercises`).where("by", "==", uid))]);
+    await Promise.all([fdb.doc(`${APP}/users/${uid}`).delete(), fdb.doc("users/" + uid).delete(), email ? fdb.doc("directory/" + email).delete().catch(() => {}) : null].filter(Boolean));
+    try { localStorage.removeItem(LOCAL_KEY + ":" + uid); } catch(e){}
+    await u.delete();
+    closeSheet(); authTab = "signup";
+  } catch(e){ btn.disabled = false; btn.textContent = "Delete my account"; err.textContent = "Your data could not all be removed. Check your connection and try again."; }
+}
+function deleteSheet(){
+  openSheet(`${head("Delete my account")}
+    <p>This permanently deletes your Contour profile, food log, scans, measurements, health details, the foods you shared${isTrainer() ? ", the exercises you wrote" : ""} and any trainer sharing. It cannot be undone.</p>
+    <p class="note">Your Pixora account is also your login for other Pixora apps. Deleting it removes that login too. Export your data first if you want a copy.</p>
+    <form data-form="del" style="display:flex;flex-direction:column;gap:12px">
+      <label class="f">Your password<input id="del-pw" type="password" autocomplete="current-password"></label>
+      <label class="check"><input type="checkbox" id="del-ok"><span>I understand this is permanent.</span></label>
+      <div class="err" id="del-err"></div><button class="btn" id="del-go" style="background:var(--high);color:#fff">Delete my account</button></form>`);
+}
 /* ---------- reports ---------- */
 let repDays = 7, repBody = true, dlFn = null;
 function buildReport(n){
@@ -1464,6 +1664,7 @@ function reportText(R){
     lines.push(`Weight: ${showWt(R.kg)} ${wtU()}${R.dW != null ? ` (${R.dW === 0 ? "no change" : sign(showWt(Math.abs(R.dW))*Math.sign(R.dW))} ${R.dW === 0 ? "" : wtU()})`.replace(" )", ")") : ""}`);
     if (R.bf != null) lines.push(`Body fat: ${R.bf}%${R.dBf != null && R.dBf !== 0 ? ` (${sign(R.dBf)} pts)` : ""}`);
   }
+  const W = weeklyWins(R.n); if (W.length){ lines.push("", "Wins:"); W.forEach(w => lines.push("• " + w)); }
   return lines.join("\n");
 }
 function viewReports(){
@@ -1478,6 +1679,7 @@ function viewReports(){
       ${tile("Weight change", R.dW == null ? "–" : R.dW === 0 ? "0" : sign(showWt(Math.abs(R.dW))*Math.sign(R.dW)), wtU(), `now ${showWt(R.kg)} ${wtU()}`)}
       ${tile("Sessions", R.done, "/" + R.planned, R.water != null ? `water ${r1(R.water)} glasses avg` : "water not tracked")}
     </div></section>
+  ${winsCard(repDays)}
   <section class="card"><h2>What stands out</h2><ul class="hl">${R.hl.map(([st,t]) => `<li class="st-${st}"><span>${esc(t)}</span></li>`).join("")}</ul></section>
   <section class="card"><h2>Share this report</h2>
     <label class="check"><input type="checkbox" id="rep-body" data-act="rep-body" ${repBody ? "checked" : ""}><span>Include weight and body fat. Leave it off to share habits only.</span></label>
@@ -1530,9 +1732,10 @@ function render(){
   const tr = isTrainer() && !viewing;
   $("#app").classList.toggle("standalone", STANDALONE); if (!STANDALONE && tab === "check") tab = "home";
   $("#app").classList.toggle("trainer", tr); $("#app").classList.toggle("ro", !!viewing);
-  if (tr) tab = "clients"; else if (tab === "clients") tab = "home";
+  $("#app").classList.toggle("cloudapp", CLOUD);
+  if (tr){ if (tab !== "clients" && tab !== "texs") tab = "clients"; } else if (tab === "clients" || tab === "texs") tab = "home";
   $("#btn-profile").textContent = !state.demo && state.profile.name ? state.profile.name : "Profile";
-  v.innerHTML = ({home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
+  v.innerHTML = ({texs:viewTexs, home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
   v.scrollTop = keep;
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
@@ -1540,7 +1743,7 @@ function go(t){ tab = TABS.includes(t) ? t : "home"; $("#view").scrollTop = 0; r
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#panel").innerHTML = html; $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
-function closeSheet(){ stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
+function closeSheet(){ clearInterval(wkTimer); wkTimer = null; stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
 const head = t => `<div class="hd"><h2>${t}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>`;
 const fld = (id, label, val, attrs="", hint="") => `<label class="f">${label}<input id="${id}" type="number" inputmode="decimal" step="0.1" value="${val ?? ""}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
 
@@ -1564,7 +1767,7 @@ function profileSheet(){
     <p class="sub">Your profile, scans and food log are private to you. This app is for adults and gives general fitness guidance, not medical advice. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13.5px">Privacy and your data</button></p>
     <details><summary style="cursor:pointer;font-weight:600">Have an import code?</summary><label class="f" style="margin-top:8px">Paste it here<textarea id="imp-text" rows="3" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink);width:100%" placeholder="CONTOUR1:…"></textarea></label><button type="button" class="btn alt" data-act="import" style="margin-top:8px">Import profile and scan</button><div class="err" id="imp-err"></div></details>
     <details class="links"><summary style="cursor:pointer;font-weight:600">Where the data comes from</summary><p class="sub">Exercises: <a href="https://github.com/yuhonas/free-exercise-db">free-exercise-db</a>, public domain. Foods: <a href="https://fdc.nal.usda.gov/">USDA FoodData Central, SR Legacy</a>, public domain, plus a short list of common dishes with approximate values and foods added by people using this app. BMI and waist lines: <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/healthy-weights/canadian-guidelines-body-weight-classification-adults/quick-reference-tool-professionals.html">Health Canada body weight classification</a> and the <a href="https://pubmed.ncbi.nlm.nih.gov/14726171/">WHO expert consultation on Asian populations</a>. Body fat: US Navy circumference method.</p></details>
-  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
+  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${state.demo ? "" : `<div class="owner"><div><h2>Your data</h2><p class="sub">Download a copy of everything Contour keeps about you.</p></div><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export all (JSON)</button><button type="button" class="btn alt" data-act="export" data-v="csv">Food log (CSV)</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div>${CLOUD && cuser ? `<button type="button" class="linkbtn" data-act="del-open" style="color:var(--high);font-size:13.5px;align-self:flex-start">Delete my account</button>` : ""}</div>`}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 function scanSheet(){
   const l = state.demo ? null : state.scans[state.scans.length-1], v = k => l && l[k] != null ? showLen(l[k]) : "";
@@ -1714,6 +1917,24 @@ const actions = {
   "meal-scan"(){ scanProduct = null; openScanner("meal"); },
   "sp-add"(){ if (!scanProduct || scanProduct.err) return; if (addProduct(scanProduct, num("sp-g")) === false) return; scanProduct = null; closeSheet(); render(); },
   nav(el){ go(el.dataset.v); },
+  "body-side"(el){ bodySide = el.dataset.v === "b" ? "b" : "f"; render(); },
+  part(el){ partSheet(el.dataset.region); },
+  "part-focus"(el){ const k = el.dataset.region, i = state.focus.indexOf(k);
+    if (i >= 0) state.focus.splice(i, 1); else if (state.focus.length >= 3){ $("#pf-msg").textContent = "Your plan holds three areas. Remove one first."; return; } else state.focus.push(k);
+    save(); partSheet(k); },
+  export(el){ exportData(el.dataset.v); },
+  "del-open"(){ deleteSheet(); },
+  "wk-start"(){ workoutSheet(); },
+  "wk-rest"(el){ restTimer(+el.dataset.s || 60); },
+  "wk-finish"(){ if (!document.querySelectorAll("[data-wk]:checked").length){ $("#wk-msg").textContent = "Tick at least one move you did."; return; }
+    state.done[today()] = true; save(); closeSheet(); render(); },
+  "tex-new"(){ texSheet(null); },
+  "tex-edit"(el){ texSheet(el.dataset.id); },
+  async "tex-del"(el){ if (el.dataset.sure !== "1"){ el.dataset.sure = "1"; el.textContent = "Tap again to delete"; return; } try { await fdb.doc(`${APP}/exercises/${el.dataset.id}`).delete(); texMsg = ""; } catch(e){ texMsg = "It could not be deleted. Check your connection."; render(); } },
+  async "vf-send"(){ const m = $("#vf-msg"); try { await cuser.sendEmailVerification(); if (m) m.textContent = `Sent to ${cuser.email}. Check your spam folder too.`; } catch(e){ if (m) m.textContent = e && e.code === "auth/too-many-requests" ? "A link was sent recently. Wait a few minutes before asking again." : "It could not be sent. Check your connection."; } },
+  async "vf-check"(){ const m = $("#vf-msg"); try { await cuser.reload(); cuser = firebase.auth().currentUser; if (!cuser.emailVerified){ if (m) m.textContent = "Not confirmed yet. Open the link in the email, then tap this again."; return; } await cuser.getIdToken(true); lastDir = ""; await cloudDirectory(); render(); } catch(e){ if (m) m.textContent = "That did not work. Check your connection."; } },
+  "vf-hide"(){ state.verifyHide = 1; save(); render(); },
+
   privacy(){ privacySheet(); },
   "privacy-ok"(){ if (!state.demo && !viewing){ state.privacyOk = 1; save(); } closeSheet(); render(); },
   "home-scan"(el){ sheetMeal = el.dataset.meal || mealNow(); scanProduct = null; openScanner("meal"); },
@@ -1763,6 +1984,24 @@ async function readScanPhoto(file){
   } catch(e){ out.textContent = AI_COPY[e && e.code] || "The photo could not be read. Type the numbers in instead."; }
 }
 const forms = {
+  del(){ cloudDeleteAccount(); },
+  async tex(){
+    const f = document.querySelector('form[data-form="tex"]'), id = f.dataset.id, err = $("#tx-err"), v = i => (($("#" + i) || {}).value || "").trim();
+    const name = v("tx-name"), regions = [...document.querySelectorAll("[data-txr]:checked")].map(x => x.value).filter(k => REGIONS[k]), steps = v("tx-steps"), video = v("tx-video");
+    if (name.length < 2) return err.textContent = "Give the exercise a name.";
+    if (!regions.length) return err.textContent = "Pick at least one body part it trains.";
+    if (!steps) return err.textContent = "Write the steps, one per line.";
+    if (video && !/^https:\/\/\S+$/.test(video)) return err.textContent = "The video link must start with https://";
+    const d = {muscles:v("tx-mus"), equipment:v("tx-eq"), level:v("tx-lv"), type:v("tx-type"), sets:v("tx-sets"), reps:v("tx-reps"), rest:v("tx-rest").replace(/\D/g, "").slice(0, 4), tempo:v("tx-tempo"), steps, cues:v("tx-cues"), mistakes:v("tx-mist"), safety:v("tx-safe"), easier:v("tx-easy"), harder:v("tx-hard"), video};
+    for (const k in d) if (!d[k]) delete d[k];
+    const vis = (document.querySelector('[name="tx-vis"]:checked') || {}).value === "all" ? "all" : "clients", old = id && texAll.get(id);
+    const doc = {by:cuser.uid, authorName:((state.profile.name || "Trainer").trim().split(/\s+/)[0] || "Trainer").slice(0, 30), name:name.slice(0, 80), regions, vis, at:old ? old.at : Date.now(), json:JSON.stringify(d)};
+    if (offline()) return err.textContent = "You are offline. Connect to publish.";
+    $("#tx-go").disabled = true;
+    try { const col = fdb.collection(`${APP}/exercises`); await Promise.race([id ? col.doc(id).set(doc) : col.add(doc), late(12000)]); closeSheet(); texMsg = ""; render(); }
+    catch(e){ $("#tx-go").disabled = false; err.textContent = e && e.code === "permission-denied" ? "Publishing was refused. Confirm your email first, then try again." : "It could not be saved. Check your connection and try again."; }
+  },
+
   chk(){ const el = $("#chk-code2") || $("#chk-code"), v = el ? el.value : ""; if ($("#chk-code2")){ closeSheet(); tab = "check"; } lookup(v); },
   mealcode(){ gotCodeTyped($("#meal-code").value); },
   tname(){ const n = ($("#t-name").value || "").trim(); if (!n) return; state.profile.name = n.slice(0, 30); save(); closeSheet(); render(); },
@@ -1856,10 +2095,10 @@ document.addEventListener("click", e => {
   if (viewing && !RO_OK.has(a.dataset.act)) return;
   actions[a.dataset.act](a, e);
 });
-const RO_OK = new Set(["nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
+const RO_OK = new Set(["part","body-side","nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#sheet").classList.contains("open")) return closeSheet();
-  if (!viewing && (e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
+  if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]") && (!viewing || e.target.dataset.act === "part")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]) forms[f](); });
 document.addEventListener("input", e => {
