@@ -317,6 +317,14 @@ nav.tabs [data-tab="progress"]{display:none}
 .draftnote .linkbtn{font-size:12.5px;color:var(--scan)}
 .nfadd{font-size:12.5px;color:var(--muted);text-align:center;margin-top:6px}
 .nfadd button{color:var(--scan);font-size:12.5px}
+.pphoto{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--sunk);border-radius:14px;padding:10px;min-height:60px;justify-content:center}
+.pphoto img{max-width:100%;max-height:220px;border-radius:10px;object-fit:contain;background:#fff}
+.pphoto small{color:var(--muted);font-size:11.5px}
+.pphoto .linkbtn{font-size:11.5px;color:var(--scan)}
+.photoadd{border:1.5px dashed var(--line);background:transparent;border-radius:12px;padding:14px;width:100%;display:flex;flex-direction:column;gap:3px;color:var(--ink);font:inherit;text-align:center}
+.photoadd small{color:var(--muted);font-size:12px}
+.foodrow .thumb{width:38px;height:38px;border-radius:8px;object-fit:contain;background:#fff;flex:none}
+.npphoto img{max-height:160px;border-radius:10px}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -1421,6 +1429,48 @@ function readHealth(){
   const notes = (($("#p-hnotes") || {}).value || "").trim().slice(0, 160), share = !!($("#p-hshare") && $("#p-hshare").checked);
   return a.length || c.length || notes ? {allergies:a, conditions:c, notes, share} : undefined;
 }
+/* ---------- product photos: Open Food Facts pictures, plus pack photos members take (shrunk on the phone, location data stripped) ---------- */
+let photoCache = new Map(), npPhoto = null;
+const offImg = u => typeof u === "string" && /^https:\/\/images\.openfoodfacts\.org\/[\w\/.\-]+$/.test(u) && u.length <= 300 ? u : "";
+// Re-drawing through a canvas drops EXIF (including GPS) and keeps the picture small enough for the shared list.
+async function shrinkPhoto(file, max){
+  max = max || 560; const bmp = await createImageBitmap(file), sc = Math.min(1, max / Math.max(bmp.width, bmp.height)), cv = document.createElement("canvas");
+  cv.width = Math.round(bmp.width*sc); cv.height = Math.round(bmp.height*sc); cv.getContext("2d").drawImage(bmp, 0, 0, cv.width, cv.height);
+  let q = 0.72, url = cv.toDataURL("image/jpeg", q); while (url.length > 150000 && q > 0.35){ q -= 0.1; url = cv.toDataURL("image/jpeg", q); }
+  return url.length <= 190000 ? url : null;
+}
+async function productPhoto(code){
+  if (photoCache.has(code)) return photoCache.get(code);
+  let v = null;
+  if (CLOUD && fdb && cuser){ try { const d = await Promise.race([fdb.doc(`${APP}/productPhotos/${code}`).get(), late(5000)]); if (d.exists){ const x = d.data(); if (typeof x.img === "string" && x.img.startsWith("data:image/jpeg;base64,")) v = {img:x.img, by:x.by}; } } catch(e){ return null; } }
+  else { const m = (state.myPhotos || {})[code]; if (m) v = {img:m, by:""}; }
+  photoCache.set(code, v); return v;
+}
+async function saveProductPhoto(code, img){
+  if (CLOUD && fdb && cuser){ await Promise.race([fdb.doc(`${APP}/productPhotos/${code}`).set({code, img, by:cuser.uid, at:Date.now()}), late(12000)]); }
+  else { state.myPhotos = {...(state.myPhotos || {}), [code]:img}; const ks = Object.keys(state.myPhotos); if (ks.length > 40) delete state.myPhotos[ks[0]]; save(); }
+  photoCache.set(code, {img, by:cuser ? cuser.uid : ""});
+}
+function photoBox(pr){
+  const off = offImg(pr.image);
+  return `<div class="pphoto" data-photo="${esc(pr.code)}">${off ? `<img src="${esc(off)}" alt="${esc(pr.name)}" loading="lazy" referrerpolicy="no-referrer">` : `<span class="sub">Loading photo…</span>`}</div>`;
+}
+// Fill photo boxes after render: the member photo wins over the Open Food Facts one, since it shows the pack sold here.
+async function fillPhotos(root){
+  for (const box of (root || document).querySelectorAll(".pphoto[data-photo]:not([data-done])")){
+    box.dataset.done = 1; const code = box.dataset.photo, p = await productPhoto(code), has = !!box.querySelector("img");
+    if (p){ box.innerHTML = `<img src="${p.img}" alt="Photo of the product"><small>Photo from a Contour member</small>${cuser && p.by === cuser.uid ? `<button class="linkbtn" data-act="pp-add" data-code="${esc(code)}">Replace</button>` : ""}`; continue; }
+    if (has){ box.insertAdjacentHTML("beforeend", `<small>Photo from Open Food Facts${viewing ? "" : ` · <button class="linkbtn" data-act="pp-add" data-code="${esc(code)}">Add your own</button>`}</small>`); continue; }
+    box.innerHTML = viewing ? `<span class="sub">No photo yet.</span>` : `<button class="photoadd" data-act="pp-add" data-code="${esc(code)}"><b>Add a photo of this product</b><small>So everyone can see what the pack looks like. Photograph the pack only.</small></button>`;
+  }
+}
+function photoPicker(code){
+  const inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.setAttribute("capture", "environment");
+  inp.onchange = async () => { const f = inp.files && inp.files[0]; if (!f) return; toast("Saving the photo…");
+    try { const img = await shrinkPhoto(f); if (!img) throw 0; await saveProductPhoto(code, img); document.querySelectorAll(`.pphoto[data-photo="${code}"]`).forEach(b => b.removeAttribute("data-done")); fillPhotos(); toast("Photo saved. Everyone will see it."); }
+    catch(e){ toast(e && e.code === "permission-denied" ? "Someone else already added a photo for this product." : "The photo could not be saved. Check your connection."); } };
+  inp.click();
+}
 /* ---------- barcode scanner: native detector when the phone has one, ZXing (WebAssembly) otherwise, plus a still-photo fallback ---------- */
 let scanStream = null, scanLoop = 0, scanBusy = false, zxReady = null, nativeDet = null;
 const ZX_FORMATS = ["EAN13", "EAN8", "UPCA", "UPCE", "Code128"];
@@ -1499,13 +1549,13 @@ function prodFromDoc(x){
   if (!x || typeof x.code !== "string" || !/^\d{6,14}$/.test(x.code) || typeof x.name !== "string") return null; const N = x.nut || {}, L = a => (Array.isArray(a) ? a : []).map(String).slice(0, 20);
   const nut = {kcal:numOrNull(N.kcal), p:numOrNull(N.p), c:numOrNull(N.c), f:numOrNull(N.f), sugars:numOrNull(N.sugars), sat:numOrNull(N.sat), salt:numOrNull(N.salt), fiber:numOrNull(N.fiber)};
   return {code:x.code, name:x.name.slice(0, 80), brand:String(x.brand || "").slice(0, 60), nut, levels:levelsOf(nut, x.levels), grade:/^[a-e]$/.test(x.grade || "") ? x.grade : null, nova:[1,2,3,4].includes(+x.nova) ? +x.nova : null,
-    additives:Math.max(0, Math.min(99, +x.additives || 0)), allergens:L(x.allergens), traces:L(x.traces), ingredients:String(x.ingredients || "").slice(0, 5000), serving:String(x.serving || "").slice(0, 40), servingG:Math.max(1, Math.min(2000, Math.round(+x.servingG || 100))), src:x.src === "user" ? "user" : "off", by:String(x.by || ""), at:+x.at || 0};
+    additives:Math.max(0, Math.min(99, +x.additives || 0)), allergens:L(x.allergens), traces:L(x.traces), ingredients:String(x.ingredients || "").slice(0, 5000), serving:String(x.serving || "").slice(0, 40), servingG:Math.max(1, Math.min(2000, Math.round(+x.servingG || 100))), src:x.src === "user" ? "user" : "off", by:String(x.by || ""), at:+x.at || 0, image:offImg(x.image), thumb:offImg(x.thumb)};
 }
 function prodToDoc(pr, src){
   const n = pr.nut, z = v => v == null ? null : Math.round(v*100)/100;
   return {code:pr.code, name:pr.name.slice(0, 80), brand:(pr.brand || "").slice(0, 60), nameLower:((pr.brand ? pr.brand + " " : "") + pr.name).toLowerCase().slice(0, 140), serving:(pr.serving || "").slice(0, 40), servingG:pr.servingG || 100,
     nut:{kcal:z(n.kcal), p:z(n.p), c:z(n.c), f:z(n.f), sugars:z(n.sugars), sat:z(n.sat), salt:z(n.salt), fiber:z(n.fiber)}, levels:pr.levels || null, grade:pr.grade || null, nova:pr.nova || null, additives:pr.additives || 0,
-    allergens:(pr.allergens || []).slice(0, 20), traces:(pr.traces || []).slice(0, 20), ingredients:(pr.ingredients || "").slice(0, 5000), src, by:cuser ? cuser.uid : "", at:Date.now()};
+    allergens:(pr.allergens || []).slice(0, 20), traces:(pr.traces || []).slice(0, 20), ingredients:(pr.ingredients || "").slice(0, 5000), image:offImg(pr.image), thumb:offImg(pr.thumb), src, by:cuser ? cuser.uid : "", at:Date.now()};
 }
 function cloudProducts(){
   if (prodUnsub || !fdb) return;
@@ -1537,7 +1587,7 @@ function ingredientsHtml(pr, open){
 }
 const srcLine = pr => pr.src === "user" ? "Added by a Contour member" : "From Open Food Facts";
 function productForm(code, from){
-  nfCode = code || ""; const A = ALLERGENS;
+  nfCode = code || ""; npPhoto = null; const A = ALLERGENS;
   openSheet(`${head("Add this product")}<p class="sub">Copy the numbers from the label. Once saved, everyone using Contour can find it by scanning or searching.</p>
   <form data-form="newprod" data-from="${from}" style="display:flex;flex-direction:column;gap:12px">
     <label class="f">Barcode number<input id="np-code" type="text" inputmode="numeric" maxlength="14" value="${esc(code || "")}"></label>
@@ -1548,6 +1598,7 @@ function productForm(code, from){
     <div class="grid2">${fld("np-c","Carbohydrate (g)","",'min="0" max="1000"')}${fld("np-f","Fat (g)","",'min="0" max="1000"')}</div>
     <div class="grid2">${fld("np-sug","Sugars (g)","",'min="0" max="1000"')}${fld("np-sat","Saturated fat (g)","",'min="0" max="1000"')}</div>
     <div class="grid2">${fld("np-na","Sodium (mg)","",'min="0" max="50000"')}${fld("np-fib","Fibre (g)","",'min="0" max="1000"')}</div>
+    <div class="f">Photo of the front of the pack (optional)<div class="npphoto" id="np-ph" style="margin-top:6px"><label class="btn alt filebtn">Take or choose a photo<input type="file" id="np-photo" accept="image/*" capture="environment" aria-label="Photo of the product"></label></div><small class="sub">Photograph the pack only. Location data is removed before saving.</small></div>
     <label class="f">Ingredients<textarea id="np-ing" rows="4" maxlength="5000" placeholder="Type or paste the ingredient list"></textarea></label>
     <div class="f">Contains<div class="chips" style="margin-top:6px">${A.map(([k, l]) => `<label class="chip ck"><input type="checkbox" data-npa value="${k}">${esc(l)}</label>`).join("")}</div></div>
     <div class="err" id="np-err" role="alert"></div><button class="btn" id="np-go">Save product</button></form>`);
@@ -1558,7 +1609,7 @@ const loaded = {};
 const loadScript = src => loaded[src] || (loaded[src] = new Promise((res, rej) => { const el = document.createElement("script"); el.src = src; el.onload = res; el.onerror = () => { delete loaded[src]; rej({code:"load"}); }; document.head.appendChild(el); }));
 async function fetchProduct(code){
   code = String(code).replace(/\D/g, ""); if (code.length < 6 || code.length > 14) throw {code:"badcode"};
-  let r; try { r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?lc=en&fields=code,product_name,product_name_en,brands,serving_size,serving_quantity,nutriments,nutrient_levels,nutriscore_grade,nova_group,additives_tags,allergens_tags,traces_tags,ingredients_text_en,ingredients_text`); } catch(e){ throw {code:"offline"}; }
+  let r; try { r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?lc=en&fields=code,product_name,product_name_en,brands,serving_size,serving_quantity,nutriments,nutrient_levels,nutriscore_grade,nova_group,additives_tags,allergens_tags,traces_tags,ingredients_text_en,ingredients_text,image_front_url,image_front_small_url,image_url,image_small_url`); } catch(e){ throw {code:"offline"}; }
   if (r.status === 404) throw {code:"notfound"}; if (!r.ok) throw {code:"offline"};
   const d = await r.json(), p = d && d.product; if (!p || d.status === 0) throw {code:"notfound"};
   const n = p.nutriments || {}, num100 = k => { const v = +n[k + "_100g"]; return isFinite(v) && v >= 0 ? v : null; };
@@ -1569,7 +1620,7 @@ async function fetchProduct(code){
   const tags = a => (Array.isArray(a) ? a : []).map(t => String(t).replace(/^[a-z]{2}:/, ""));
   const sq = +p.serving_quantity;
   return {code, name:String(p.product_name_en || p.product_name || "Unnamed product").slice(0, 70), brand:String(p.brands || "").split(",")[0].trim().slice(0, 40), nut, levels, grade:/^[a-e]$/.test(p.nutriscore_grade || "") ? p.nutriscore_grade : null, nova:[1,2,3,4].includes(+p.nova_group) ? +p.nova_group : null,
-    additives:tags(p.additives_tags).length, allergens:tags(p.allergens_tags), traces:tags(p.traces_tags), ingredients:String(p.ingredients_text_en || p.ingredients_text || "").slice(0, 5000), serving:String(p.serving_size || "").slice(0, 30), servingG:isFinite(sq) && sq > 0 && sq < 2000 ? Math.round(sq) : 100};
+    additives:tags(p.additives_tags).length, allergens:tags(p.allergens_tags), traces:tags(p.traces_tags), ingredients:String(p.ingredients_text_en || p.ingredients_text || "").slice(0, 5000), image:offImg(p.image_front_url || p.image_url || ""), thumb:offImg(p.image_front_small_url || p.image_small_url || ""), serving:String(p.serving_size || "").slice(0, 30), servingG:isFinite(sq) && sq > 0 && sq < 2000 ? Math.round(sq) : 100};
 }
 function judge(pr, hh){
   hh = hh || {}; const F = [], A = hh.allergies || [], C = hh.conditions || [], L = pr.levels, n = pr.nut, g = (v, u = "g") => v == null ? "" : ` (${r1(v)} ${u} per 100 g)`;
@@ -1598,7 +1649,7 @@ function judge(pr, hh){
 function productCard(pr){
   const hh = state.profile.health, J = judge(pr, hh), n = pr.nut, word = {low:"Low", moderate:"Moderate", high:"High"}, st = {low:"good", moderate:"watch", high:"high"};
   const cell = (label, v, lev, u = "g") => `<div>${label}<b>${v == null ? "–" : r1(v) + " " + u}</b>${lev ? `<span class="pill st-${st[lev]}">${word[lev]}</span>` : ""}</div>`;
-  return `<section class="card"><div class="row between" style="align-items:flex-start"><div><h2>${esc(pr.name)}</h2><p class="sub">${esc(pr.brand || "Brand not listed")} · ${esc(pr.code)}</p></div><span class="pill st-${J.verdict[0]}" style="white-space:nowrap">${J.verdict[1]}</span></div>
+  return `<section class="card">${photoBox(pr)}<div class="row between" style="align-items:flex-start"><div><h2>${esc(pr.name)}</h2><p class="sub">${esc(pr.brand || "Brand not listed")} · ${esc(pr.code)}</p></div><span class="pill st-${J.verdict[0]}" style="white-space:nowrap">${J.verdict[1]}</span></div>
     ${J.flags.length ? `<ul class="hl">${J.flags.map(([s2, t]) => `<li class="st-${s2}"><span>${esc(t)}</span></li>`).join("")}</ul>` : `<p class="sub">Nothing stands out on the label data.</p>`}
     ${hh && ((hh.allergies || []).length || (hh.conditions || []).length) ? "" : `<p class="sub">Add allergies or health conditions in Profile to get flags that are personal to you.</p>`}</section>
   <section class="card"><h2>Per 100 g</h2><div class="lv">${cell("Calories", n.kcal, null, "kcal")}${cell("Sugar", n.sugars, pr.levels.sugars)}${cell("Saturated fat", n.sat, pr.levels.sat)}${cell("Salt", n.salt, pr.levels.salt)}${cell("Protein", n.p, null)}${cell("Fibre", n.fiber, null)}</div>
@@ -1637,7 +1688,7 @@ function productAddBox(){
   if (pr.err) return `<div class="ai"><b>Barcode ${esc(pr.code || "")}</b><p class="sub">${esc(pr.err)}${pr.nf ? " Search the list below instead." : ""}</p>${pr.nf && !viewing ? `<p class="nfadd">Have the pack? <button class="linkbtn" data-act="np-open" data-code="${esc(pr.code)}" data-from="meal">Add this product for everyone</button></p>` : ""}</div>`;
   if (pr.nut.kcal == null) return `<div class="ai"><b>${esc(pr.name)}</b><p class="sub">This product has no nutrition numbers yet. Search the list instead.</p>${ingredientsHtml(pr, false)}</div>`;
   const J = judge(pr, state.profile.health);
-  return `<div class="ai"><div class="row between"><b>${esc(pr.name)}</b><span class="pill st-${J.verdict[0]}">${J.verdict[1]}</span></div><p class="sub">${esc(pr.brand || "")} · ${Math.round(pr.nut.kcal)} kcal per 100 g · ${srcLine(pr)}</p>${ingredientsHtml(pr, false)}
+  return `<div class="ai">${photoBox(pr)}<div class="row between"><b>${esc(pr.name)}</b><span class="pill st-${J.verdict[0]}">${J.verdict[1]}</span></div><p class="sub">${esc(pr.brand || "")} · ${Math.round(pr.nut.kcal)} kcal per 100 g · ${srcLine(pr)}</p>${ingredientsHtml(pr, false)}
     <div class="row"><label class="f" style="flex:1">Grams${pr.serving ? ` (a serving is ${esc(pr.serving)})` : ""}<input id="sp-g" type="number" inputmode="decimal" min="1" max="3000" value="${pr.servingG}"></label><button class="btn" data-act="sp-add" style="width:auto;align-self:flex-end">Add</button></div></div>`;
 }
 function addProduct(pr, grams){
@@ -2238,14 +2289,14 @@ function render(){
   if (onb){ tourEnd(); v.innerHTML = viewOnboard(); v.scrollTop = 0; return; }
   $("#btn-profile").textContent = !state.demo && state.profile.name ? state.profile.name : "Profile";
   v.innerHTML = ({texs:viewTexs, home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
-  const inv = tourInvite(); if (inv) v.insertAdjacentHTML("afterbegin", inv); draftRestore(v);
+  const inv = tourInvite(); if (inv) v.insertAdjacentHTML("afterbegin", inv); draftRestore(v); fillPhotos(v);
   v.scrollTop = keep; if (tourS && tourS.t === tab) requestAnimationFrame(tourShow); else if (tourS) tourEnd();
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
 function go(t){ if (tourS) tourEnd(); tab = TABS.includes(t) ? t : "home"; if (window.PixoraUsage) PixoraUsage.track("tab_" + tab); $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
 
 /* ---------- sheets ---------- */
-function openSheet(html){ $("#panel").innerHTML = html; draftRestore($("#panel")); $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
+function openSheet(html){ $("#panel").innerHTML = html; draftRestore($("#panel")); fillPhotos($("#panel")); $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
 function closeSheet(){ clearInterval(wkTimer); wkTimer = null; stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
 const head = t => `<div class="hd"><h2>${t}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>`;
 const fld = (id, label, val, attrs="", hint="") => `<label class="f">${label}<input id="${id}" type="number" inputmode="decimal" step="0.1" value="${val ?? ""}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
@@ -2304,7 +2355,7 @@ let lastHits = [];
 function foodList(q){
   const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean), full = toks.join(" ");
   const prodRows = [...products.values(), ...(state.myProducts || []).map(prodFromDoc).filter(Boolean)].filter(pr => pr.nut.kcal != null).map(pr => { const g = pr.servingG, k = v => r1((v || 0)*g/100);
-    return {a:[(pr.brand ? pr.brand + " " : "") + pr.name, pr.serving || g + " g", Math.round(pr.nut.kcal*g/100), k(pr.nut.p), k(pr.nut.c), k(pr.nut.f)], src:"Packaged", prod:pr}; });
+    return {a:[(pr.brand ? pr.brand + " " : "") + pr.name, pr.serving || g + " g", Math.round(pr.nut.kcal*g/100), k(pr.nut.p), k(pr.nut.c), k(pr.nut.f)], src:"Packaged", prod:pr, thumb:pr.thumb}; });
   const pool = [...prodRows, ...community.map(x => ({a:x.a, src:"Community", id:x.id, by:x.by})), ...(state.myFoods||[]).map(a => ({a, src:"Yours"})), ...FOODS.map(a => ({a, src:"Common"}))];
   let hits;
   if (!toks.length) hits = pool.slice(0, 40);
@@ -2316,7 +2367,7 @@ function foodList(q){
     hits = sc.sort((x,y) => x[0]-y[0]).slice(0, 40).map(x => x[1]);
   }
   lastHits = hits;
-  return hits.length ? hits.map((o,i) => { const f = o.a; return `<div class="foodrow"><div><b>${esc(f[0])}</b>${o.src !== "Common" ? `<span class="src">${o.src}</span>` : ""}<small>${f[1] ? esc(f[1]) + " · " : ""}${f[2]} kcal · P ${f[3]} C ${f[4]} F ${f[5]}${o.id && o.by && o.by === myId ? ` · <button class="linkbtn" data-act="delfood" data-id="${esc(o.id)}">Delete</button>` : ""}</small></div><button data-act="pickfood" data-i="${i}">Add</button></div>`; }).join("") : `<p class="sub" style="padding:10px 0">No match. Create it below and everyone using this app can find it next time.</p>`;
+  return hits.length ? hits.map((o,i) => { const f = o.a; return `<div class="foodrow"${o.thumb ? ` style="grid-template-columns:auto 1fr auto"` : ""}>${o.thumb ? `<img class="thumb" src="${esc(o.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ""}<div><b>${esc(f[0])}</b>${o.src !== "Common" ? `<span class="src">${o.src}</span>` : ""}<small>${f[1] ? esc(f[1]) + " · " : ""}${f[2]} kcal · P ${f[3]} C ${f[4]} F ${f[5]}${o.id && o.by && o.by === myId ? ` · <button class="linkbtn" data-act="delfood" data-id="${esc(o.id)}">Delete</button>` : ""}</small></div><button data-act="pickfood" data-i="${i}">Add</button></div>`; }).join("") : `<p class="sub" style="padding:10px 0">No match. Create it below and everyone using this app can find it next time.</p>`;
 }
 const aiAllowed = () => !(STANDALONE && CLOUD) || !!state.aiOn;
 function aiBlock(){
@@ -2451,6 +2502,7 @@ const actions = {
   "gs-food"(){ go("today"); }, "gs-plan"(){ go("focus"); }, "gs-scan"(){ go("scan"); scanSheet(); },
   "scan-torch"(el){ const t = scanStream && scanStream.getVideoTracks()[0]; if (!t) return; const on = el.getAttribute("aria-pressed") !== "true"; t.applyConstraints({advanced:[{torch:on}]}).then(() => el.setAttribute("aria-pressed", on)).catch(() => {}); },
   "draft-discard"(el){ const f = el.closest("form[data-form]"); if (!f) return; draftClear(draftKey(f)); f.reset(); f.querySelectorAll("[data-act][aria-pressed]").forEach((b, i, a) => b.setAttribute("aria-pressed", b === a[0])); const n = f.querySelector(".draftnote"); if (n) n.remove(); },
+  "pp-add"(el){ photoPicker(el.dataset.code); },
   "np-open"(el){ productForm(el.dataset.code, el.dataset.from || "check"); },
   "np-basis"(el){ for (const b of el.parentNode.children) b.setAttribute("aria-pressed", b === el); },
   "body-side"(el){ bodySide = el.dataset.v === "b" ? "b" : "f"; render(); },
@@ -2534,6 +2586,7 @@ const forms = {
     if (nut.kcal > 950) return err.textContent = "Those calories are too high for the serving weight. Check both numbers.";
     const pr = {code, name, brand:v("np-brand"), serving:v("np-serv"), servingG:sg > 0 ? Math.round(sg) : 100, nut, levels:levelsOf(nut), grade:null, nova:null, additives:0, allergens:[...document.querySelectorAll("[data-npa]:checked")].map(x => x.value), traces:[], ingredients:v("np-ing"), src:"user"};
     $("#np-go").disabled = true; const ok = await saveProduct(pr, "user"); pr.by = cuser ? cuser.uid : "";
+    if (ok && npPhoto) try { await saveProductPhoto(code, npPhoto); } catch(e){ toast("The product was saved, but the photo was not. Add it again from the product."); }
     if (!ok){ $("#np-go").disabled = false; return err.textContent = "It could not be saved. Check your connection and try again."; }
     draftClear("newprod");
     toast("Saved. Everyone can now find this product.");
@@ -2668,6 +2721,7 @@ document.addEventListener("input", e => {
   if (e.target.dataset && e.target.dataset.aiG != null){ const i = +e.target.dataset.aiG, x = aiItems[i]; if (!x) return; const v = parseFloat(e.target.value); x.g = isFinite(v) && v > 0 ? Math.min(v, 3000) : 0;
     $("#ai-k-"+i).textContent = `${Math.round(aiK(x))} kcal · P ${Math.round(x.p100*x.g/100)} C ${Math.round(x.c100*x.g/100)} F ${Math.round(x.f100*x.g/100)}`; $("#ai-addbtn").textContent = aiTotal(); return; } if (e.target.id === "food-q") $("#food-list").innerHTML = foodList(e.target.value); });
 document.addEventListener("change", e => {
+  if (e.target.id === "np-photo" && e.target.files && e.target.files[0]){ const box = $("#np-ph"); shrinkPhoto(e.target.files[0]).then(img => { npPhoto = img; if (box && img) box.insertAdjacentHTML("afterbegin", `<img src="${img}" alt="Your photo of the product">`); if (!img) toast("That photo could not be used. Try another."); }).catch(() => toast("That photo could not be used. Try another.")); return; }
   { const f = e.target.closest && e.target.closest("form[data-form]"); if (f && !NO_DRAFT.has(f.dataset.form)) draftSave(f); }
   if (e.target.id === "scan-photo" && e.target.files && e.target.files[0]){ scanPhoto(e.target.files[0]); return; } if (e.target.id === "cl-file" && e.target.files && e.target.files[0]){ e.target.files[0].text().then(importPkgText).then(m => { clientMsg = m || "Added."; render(); }); return; } if (e.target.dataset && e.target.dataset.ps && e.target.files && e.target.files[0]){ const kg0 = num("ps-kg0"); psFiles[e.target.dataset.ps] = e.target.files[0]; psMsg = ""; scanSheet(); if (kg0 != null && $("#ps-kg0")) $("#ps-kg0").value = kg0; return; } if (e.target.id === "ms-photo" && e.target.files && e.target.files[0]) readScanPhoto(e.target.files[0]); if (e.target.id === "ai-photo" && e.target.files && e.target.files[0]) runAI(($("#ai-text").value || "").trim(), e.target.files[0]); });
 window.addEventListener("resize", () => { if (tourS) tourShow(); });
