@@ -923,6 +923,15 @@ function trainerSheet(){
 /* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
 const APP = "apps/contour";
 let fdb = null, cuser = null, cloudReady = false, pendingRole = "member", pushTimer = null, pushing = false, pushDirty = false, monthSig = {}, mainUnsub = null, grantsUnsub = null, lastDir = "";
+const canShareFood = () => CLOUD ? !!(cuser && fdb) : !!(cloudDb && groupKey);
+let foodsUnsub = null;
+function cloudFoods(){
+  if (foodsUnsub || !fdb) return;
+  foodsUnsub = fdb.collection(`${APP}/foods`).limit(1000).onSnapshot(snap => {
+    const list = []; snap.forEach(d => { const x = d.data() || {}, a = cleanFood(x); if (a) list.push({id:d.id, by:x.by, at:+x.at || 0, a}); });
+    community = list.sort((x,y) => y.at - x.at); const q = $("#food-q"); if (q) $("#food-list").innerHTML = foodList(q.value);
+  }, () => { foodsUnsub = null; });
+}
 const late = ms => new Promise((_, rej) => setTimeout(() => rej({code:"timeout"}), ms));
 const offline = () => navigator.onLine === false;
 function cloudAuthInit(){
@@ -968,10 +977,10 @@ async function cloudEnter(u){
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
     if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  cloudTrainerInit();
+  myId = u.uid; cloudFoods(); cloudTrainerInit();
 }
 function cloudLeave(){
-  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); mainUnsub = grantsUnsub = null;
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; community = []; myId = null;
   clearTimeout(pushTimer); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
 function cloudLogout(){ closeSheet(); authTab = "login"; firebase.auth().signOut().catch(() => {}); }
@@ -1311,7 +1320,7 @@ function foodSheet(meal){
         <div class="grid2"><label class="f">Name<input id="m-name" type="text" required minlength="2" maxlength="60" style="font-size:16px"></label><label class="f">Serving<input id="m-serv" type="text" maxlength="40" placeholder="1 bowl (250 g)" style="font-size:16px"></label></div>
         <div class="grid2">${fld("m-kcal","Calories","",'step="1" min="0" max="5000" required')}${fld("m-p","Protein (g)","",'min="0" max="1000"')}</div>
         <div class="grid2">${fld("m-c","Carbs (g)","",'min="0" max="1000"')}${fld("m-f","Fat (g)","",'min="0" max="1000"')}</div>
-        <label class="check"><input type="checkbox" id="m-share" ${cloudDb && groupKey ? "checked" : "disabled"}><span>${cloudDb && groupKey ? "Share it with other members. It is stored encrypted and your name is not shown." : "Sharing is unavailable in this view. The food is saved to your own list."}</span></label>
+        <label class="check"><input type="checkbox" id="m-share" ${canShareFood() ? "checked" : "disabled"}><span>${canShareFood() ? (CLOUD ? "Share it with everyone using Contour. Your name is not shown." : "Share it with other members. It is stored encrypted and your name is not shown.") : "Sharing is unavailable in this view. The food is saved to your own list."}</span></label>
         <div class="err" id="m-err"></div>
         <button class="btn alt">Save and add to ${meal.toLowerCase()}</button></form></details>`);
 }
@@ -1394,7 +1403,7 @@ const actions = {
     const b = $("#owner-box"); if (b){ b.outerHTML = ownerPanel(); if (bad) $("#c-err").textContent = "Revoking did not finish. Check your connection and try again."; }
   },
   async "code-copy"(el){ const x = ownerCodes[+el.dataset.i]; if (!x) return; try { await navigator.clipboard.writeText(x.code); el.textContent = "Copied"; } catch(e){ el.textContent = "Select it"; } },
-  async delfood(el){ if (!cloudDb) return; try { await cloudDb.doc("foods/" + el.dataset.id).delete(); } catch(e){} },
+  async delfood(el){ if (CLOUD){ try { await fdb.doc(`${APP}/foods/${el.dataset.id}`).delete(); } catch(e){} return; } if (!cloudDb) return; try { await cloudDb.doc("foods/" + el.dataset.id).delete(); } catch(e){} },
   "lib-region"(el){ libRegion = el.dataset.v; libShown = 10; render(); },
   "lib-level"(el){ libLevel = +el.dataset.v; libShown = 10; render(); },
   "lib-more"(){ libShown += 10; render(); },
@@ -1495,7 +1504,9 @@ const forms = {
     const err = $("#m-err"), a = cleanFood({name:$("#m-name").value, serv:$("#m-serv").value, kcal:num("m-kcal"), p:num("m-p"), c:num("m-c"), f:num("m-f")});
     if (!a) return err.textContent = "Give it a name and a calorie value between 0 and 5000.";
     if (a[3]*4 + a[4]*4 + a[5]*9 > a[2]*1.4 + 40) return err.textContent = "Those macros add up to far more than the calories. Check the numbers.";
-    const share = cloudDb && groupKey && $("#m-share").checked; let shared = false;
+    const share = canShareFood() && $("#m-share").checked; let shared = false;
+    if (share && CLOUD){ fdb.collection(`${APP}/foods`).add({name:a[0], serv:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], by:cuser.uid, at:Date.now()}).catch(() => {}); shared = true; }
+    else
     if (share){ try { const e = await seal(groupKey, foodBody(a)); await cloudDb.collection("foods").add({iv:e.iv, ct:e.ct, by:myId || "", at:Date.now()}); shared = true; } catch(e){} }
     if (!shared) (state.myFoods ||= []).push(a);
     addEntry({name:a[0], serv:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5]});
