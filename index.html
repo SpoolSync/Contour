@@ -290,6 +290,8 @@ nav.tabs [data-tab="progress"]{display:none}
 <script src="vendor/firebase-auth-compat.js"></script>
 <script src="vendor/firebase-firestore-compat.js"></script>
 <script src="data/cloud.js"></script>
+<script src="data/pixora-summary.js"></script>
+<script src="data/vault.js"></script>
 <script>
 "use strict";
 /* ---------- helpers ---------- */
@@ -670,12 +672,12 @@ function noticeHtml(){
     <p>A plain summary of what Contour keeps about you, where it goes, and who can see it.</p>
     <h3>What is saved</h3><p>Your name, age, sex, height, weight, food log, water, workouts, body scans and measurements, and any allergies or health conditions you choose to add.</p>
     <h3>Where it is kept</h3><p>${cloud ? "On your phone, and in Pixora's cloud database, run on Google Firebase with the data stored in Toronto. That is what lets you log in on another device and keeps working offline." : claude ? "In this browser and in your Claude account, when this app can reach it." : "In this browser on this device only."}</p>
-    <h3>Who can see it</h3><ul><li>You.</li><li>A trainer, only if you share your profile with them. They can look but not change anything. Your health details are hidden from them unless you tick the box in Profile.</li>${cloud ? `<li>Pixora, who runs the app, can access the database to keep it working.</li>` : ""}<li>Foods you add with Share ticked are visible to everyone using Contour, without your name.</li></ul>
-    <h3>Photos</h3><ul>${claude ? `<li>Food photos, meal descriptions and body scan photos are sent to Claude to be read. They are not saved by this app.</li>` : `<li>Food photos and meal descriptions are sent to Google Gemini to recognise the food. On Google's free tier, people at Google may review them to improve its services. Keep faces and personal details out of food photos.</li><li>Body scan photos are measured on your phone and are never uploaded or saved.</li>`}</ul>
+    <h3>Who can see it</h3><ul><li>You.</li><li>A trainer, only if you share your profile with them. They can look but not change anything. Your health details are hidden from them unless you tick the box in Profile.</li>${cloud ? `<li>Nobody else. Your data is encrypted on your phone before it goes to the cloud, with a key protected by your Contour passcode. Pixora, who runs the database, sees only scrambled data and can't read it.</li>` : ""}<li>Foods you add with Share ticked are visible to everyone using Contour, without your name.</li></ul>
+    <h3>Photos</h3><ul>${claude ? `<li>Food photos, meal descriptions and body scan photos are sent to Claude to be read. They are not saved by this app.</li>` : `<li>Photo and description logging is off unless you turn it on. When it's on, the food photo or text you give it is sent to Google Gemini to recognise the food. On Google's free tier, people at Google may review them to improve its services. Keep faces and personal details out of food photos.</li><li>Body scan photos are measured on your phone and are never uploaded or saved.</li>`}</ul>
     <h3>Product checks</h3><p>Only the barcode number is sent to Open Food Facts, a free public food database. Its data comes from volunteers and can be missing or wrong. If you have an allergy, always read the pack.</p>
     <h3>Not medical advice</h3><p>Contour is for adults and gives general fitness guidance. Calorie targets, body fat and product verdicts are estimates. Talk to a doctor about any health condition before changing your diet or exercise.</p>
     <h3>Removing your data</h3><p>Email <b>pixora3dstudios@gmail.com</b> from the address you signed up with and your account and data will be deleted.</p>
-    <p class="sub">Last updated November 20, 2026.</p></div>`;
+    <p class="sub">Last updated November 21, 2026.</p></div>`;
 }
 function privacySheet(){ openSheet(`${head("Your data in Contour")}${noticeHtml()}<button class="btn" data-act="privacy-ok">Got it</button>`); }
 function viewHome(){
@@ -694,7 +696,7 @@ function viewHome(){
   const sc = state.scans[state.scans.length-1], wn = state.water[today()] || 0, sk = streak(), R = buildReport(7);
   const sign = v => (v > 0 ? "+" : "−") + Math.abs(v);
   return `${banner()}
-  ${verifyCard()}${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data now syncs to Pixora's cloud, and food photos go to Google Gemini. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
+  ${verifyCard()}${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data syncs to Pixora's cloud encrypted, so only you and a trainer you choose can read it. Food photo AI is off unless you turn it on. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
   <div><h1>${viewing ? esc(viewing.name) + "'s day" : hi + (nm ? ", " + esc(nm) : "")}</h1><p class="sub">${dateLine}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
   <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${tg.kcal.toLocaleString()}</small></div>
     <div class="bar" style="height:8px"><i style="width:${pct}%;${left < 0 ? "background:var(--watch)" : ""}"></i></div>
@@ -1062,25 +1064,101 @@ function cloudAuthInit(){
     });
   });
 }
-async function cloudLoad(uid){
+/* Everything in the cloud is encrypted on the phone (data/vault.js). key: the data key to open uid's data with;
+   the person's own key by default, or a key a member shared with this trainer. Throws when it can't open it. */
+async function cloudLoad(uid, key){
+  const own = cuser && uid === cuser.uid;
+  key = key || (own && vkeys ? vkeys.dk : null);
   const base = fdb.doc(`${APP}/users/${uid}`), main = await base.get(); if (!main.exists) return null;
-  const s = JSON.parse(main.data().json), sig = {}; s.days = {};
+  const md = main.data();
+  if (own && md.kw && vkeys && md.kw.kid !== vkeys.kid){
+    // The data key was changed on another phone (sharing stopped there): reopen the newer bundle.
+    vkeys = Object.assign(await ContourVault.refresh(vkeys, md.kw), {kw:md.kw, uid}); await ContourVault.keep(uid, vkeys); key = vkeys.dk;
+  }
+  let s;
+  if (md.ct){ if (!key) throw {code:"nokey"}; s = await ContourVault.openJSON(key, md); }
+  else if (md.json) s = JSON.parse(md.json);
+  else return null;
+  const sig = {}; s.days = {};
   const ms = await base.collection("months").get();
-  ms.forEach(d => { const j = (d.data() || {}).json; if (!j) return; sig[d.id] = j; Object.assign(s.days, JSON.parse(j)); });
-  const st = normalise({...s, demo:false}); if (!st) return null; st._sig = sig;
-  if (cuser && uid === cuser.uid) try { const me = await fdb.doc("users/" + uid).get(), hj = me.exists && me.data().contourHealth; if (hj){ const hh = JSON.parse(hj); if (hh) st.profile.health = hh; } } catch(e){}
+  for (const d of ms.docs){
+    const x = d.data() || {};
+    if (x.ct){ if (!key) throw {code:"nokey"}; const o = await ContourVault.openJSON(key, x); sig[d.id] = JSON.stringify(o); Object.assign(s.days, o); }
+    else if (x.json){ sig[d.id] = "legacy"; Object.assign(s.days, JSON.parse(x.json)); }
+  }
+  const st = normalise({...s, demo:false}); if (!st) return null; st._sig = sig; st._legacy = !md.ct;
+  if (own) try {
+    const me = await fdb.doc("users/" + uid).get(), u = me.exists ? me.data() : {};
+    if (u.contourHealthE && vkeys){ const hh = await ContourVault.openJSON(vkeys.hk, u.contourHealthE); if (hh) st.profile.health = hh; }
+    else if (u.contourHealth){ const hh = JSON.parse(u.contourHealth); if (hh) st.profile.health = hh; }
+  } catch(e){}
   return st;
 }
 const putLocal = () => { try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){} };
+/* ---------- Contour passcode: unlocks this account's keys on this phone, once ---------- */
+let vkeys = null, vpend = null, vmsg = "", vforce = false;
+async function vaultReady(u){
+  if (vkeys && vkeys.uid === u.uid) return true;
+  let k = null; try { k = await ContourVault.load(u.uid); } catch(e){}
+  if (k && k.dk){ vkeys = k; return true; }
+  let snap = null;
+  try { snap = await Promise.race([fdb.doc(`${APP}/users/${u.uid}`).get(), late(10000)]); }
+  catch(e){ access = "vault"; vpend = {u, mode:"offline"}; return false; }
+  const kw = snap.exists ? snap.data().kw : null;
+  access = "vault"; vpend = {u, mode: kw ? "enter" : "set", kw: kw || null, legacy: snap.exists && !kw && !!snap.data().json}; vmsg = "";
+  return false;
+}
+async function vaultSubmit(){
+  const p1 = ($("#v-p1") || {}).value || "", p2 = ($("#v-p2") || {}).value || "", btn = $("#v-go"), say = t => { vmsg = t; const e = $("#v-err"); if (e) e.textContent = t; };
+  if (!vpend || !vpend.u) return;
+  if (vpend.mode === "set" || vpend.mode === "reset"){ if (p1.length < 4) return say("Use at least 4 characters."); if (p1 !== p2) return say("The two passcodes don't match."); }
+  if (btn){ btn.disabled = true; btn.textContent = vpend.mode === "set" ? "Setting up…" : "Unlocking…"; }
+  const u = vpend.u;
+  try {
+    if (vpend.mode === "set" || vpend.mode === "reset"){
+      if (vpend.mode === "reset"){
+        // Forgot the passcode: the cloud copy can't be opened any more. Start fresh keys and replace it with this phone's copy.
+        const ms = await fdb.collection(`${APP}/users/${u.uid}/months`).get(); for (const d of ms.docs) monthSig[d.id] = "reset"; vforce = true;
+      }
+      const r = await ContourVault.create(p1);
+      await fdb.doc(`${APP}/users/${u.uid}`).set({kw:r.kw}, {merge:true});
+      vkeys = Object.assign(r.keys, {kw:r.kw, uid:u.uid});
+    } else {
+      vkeys = Object.assign(await ContourVault.unlock(p1, vpend.kw), {kw:vpend.kw, uid:u.uid});
+    }
+    await ContourVault.keep(u.uid, vkeys);
+  } catch(e){
+    if (btn){ btn.disabled = false; btn.textContent = vpend.mode === "enter" ? "Unlock" : "Set passcode"; }
+    return say(vpend.mode === "enter" ? "That isn't your Contour passcode." : "Couldn't save. Check your connection and try again.");
+  }
+  vpend = null; vmsg = ""; access = "checking"; render();
+  await cloudEnter(u); render();
+}
+function vaultGate(){
+  const m = vpend ? vpend.mode : "offline";
+  if (m === "offline") return `<section class="card"><h1>Connect once to finish</h1><p class="sub">Contour now encrypts your data on your phone before it reaches the cloud. Connect to the internet once so this phone can set that up.</p><button class="btn" data-act="vault-retry">Try again</button><button class="linkbtn" data-act="logout" style="align-self:flex-start">Log out</button></section>`;
+  const set = m === "set" || m === "reset";
+  return `<div><h1>${set ? "Set a Contour passcode" : "Enter your Contour passcode"}</h1><p class="sub">${set
+      ? (m === "reset" ? "New keys for your account. The old cloud copy is replaced with what's on this phone." : vpend.legacy ? "Contour now encrypts your data on your phone before it goes to the cloud, so nobody else can read it, not even Pixora. Pick a passcode to protect your key. You type it once per phone." : "It protects the key that encrypts your data before it reaches the cloud, so nobody else can read it, not even Pixora. You type it once per phone.")
+      : "The one you set on your first phone. You type it once per phone."}</p></div>
+  <section class="card"><form data-form="vault" style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Passcode<input id="v-p1" type="password" autocomplete="${set ? "new-password" : "current-password"}" style="font-size:16px"></label>
+    ${set ? `<label class="f">Repeat passcode<input id="v-p2" type="password" autocomplete="new-password" style="font-size:16px"><small>It can't be recovered. If you forget it, you can start over from what's on your phone.</small></label>` : ""}
+    <div class="err" id="v-err">${esc(vmsg)}</div><button class="btn" id="v-go">${set ? "Set passcode" : "Unlock"}</button></form>
+    ${m === "enter" ? `<button class="linkbtn" data-act="vault-forgot" style="color:var(--high);font-size:13.5px;align-self:flex-start">${vpend.arm ? "Tap again: replaces your cloud data with this phone's copy" : "Forgot it? Start over from this phone"}</button>` : ""}
+    <button class="linkbtn" data-act="logout" style="font-size:13.5px;align-self:flex-start">Use a different account</button></section>`;
+}
 async function cloudEnter(u){
+  if (!(await vaultReady(u))) return;
   localKey = LOCAL_KEY + ":" + u.uid;
   let local = null; try { local = normalise(JSON.parse(localStorage.getItem(localKey))); } catch(e){}
   state = local || demoState(); access = "open"; render();
-  let remote = null, reached = false; try { remote = await Promise.race([cloudLoad(u.uid), late(9000)]); reached = true; } catch(e){}
+  let remote = null, reached = false; if (!vforce) try { remote = await Promise.race([cloudLoad(u.uid), late(9000)]); reached = true; } catch(e){}
   if (cuser !== u) return;
-  if (remote){ monthSig = remote._sig || {}; delete remote._sig; }
-  if (remote && (!local || (remote.ts || 0) > (local.ts || 0))){ state = remote; putLocal(); setSync("Synced"); }
-  else if (local){ if (reached) cloudQueue(); else setSync("Saved on this device, will sync"); }
+  let legacy = false;
+  if (remote){ monthSig = remote._sig || {}; legacy = remote._legacy; delete remote._sig; delete remote._legacy; }
+  if (remote && (!local || (remote.ts || 0) > (local.ts || 0))){ state = remote; putLocal(); setSync("Synced"); if (legacy) cloudQueue(); }
+  else if (local){ if (reached || vforce) cloudQueue(); else setSync("Saved on this device, will sync"); }
   else if (reached){
     // A brand-new account. If this phone already tracked data before accounts existed, move it into the account once.
     let legacy = null; try { if (!localStorage.getItem(LOCAL_KEY + ":adopted")) legacy = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
@@ -1092,31 +1170,69 @@ async function cloudEnter(u){
   if (mainUnsub) mainUnsub();
   mainUnsub = fdb.doc(`${APP}/users/${u.uid}`).onSnapshot(snap => {
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
-    if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
+    if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).catch(() => null).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  myId = u.uid; cloudFoods(); cloudTrainerInit(); cloudTexInit(true);
+  myId = u.uid; cloudFoods(); cloudTrainerInit(); cloudTexInit(true); dashKick(2000); vforce = false;
+  cloudShareRefresh().catch(() => {});
+}
+/* A member's trainer holds a sealed copy of the data key. Re-seal it when the key changed or the grant predates encryption. */
+async function cloudShareRefresh(){
+  const sh = state.share; if (!cuser || !vkeys || state.demo || !sh || !sh.cloud || !sh.uid) return;
+  const ref = fdb.doc(`${APP}/grants/${cuser.uid}_${sh.uid}`), g = await ref.get(); if (!g.exists) return;
+  const wk = (g.data() || {}).wk; if (wk && wk.kid === vkeys.kid) return;
+  const t = sh.email ? await fdb.doc("directory/" + sh.email).get() : null, pub = t && t.exists ? t.data().pub : null; if (!pub) return;
+  await ref.update({wk: await ContourVault.shareKey(vkeys, pub)});
+}
+
+/* ---------- Pixora Today dashboard ----------
+   A short summary of your own day, encrypted on this phone to your own dashboard's key (see data/pixora-summary.js).
+   Only your dashboard can open it. Never sent while a trainer is viewing a client, for trainer accounts, or for the demo. */
+function dashSummary(){
+  const t = today(), tot = dayTotals(t), tg = targets(state.profile, curKg());
+  const wd = weekDates(), ti = wd.indexOf(t), plan = buildWeek()[ti] || {};
+  const W = state.weights, wl = W[W.length-1], w30 = [...W].reverse().find(x => x.d <= daysAgo(30));
+  return {
+    d:t, kcal:Math.round(tot.kcal), target:tg.kcal, p:Math.round(tot.p), pTarget:Math.round(tg.p),
+    loggedToday:(state.days[t] || []).length > 0, streak:streak(),
+    workout:{done:wd.filter(d => state.done[d]).length, of:6, today:plan.t && plan.t !== "Rest" ? plan.t : "", doneToday:!!state.done[t]},
+    weight: wl ? {kg:wl.kg, d:wl.d, u:imp() ? "lb" : "kg", ch30: w30 ? Math.round((wl.kg - w30.kg)*10)/10 : null} : null
+  };
+}
+function dashKick(ms){
+  if (!window.PixoraSummary) return;
+  PixoraSummary.schedule("contour", () => {
+    if (!fdb || !cuser || !state || state.demo || viewing || isTrainer()) return null;
+    return {fdb, uid:cuser.uid, build:dashSummary};
+  }, ms);
 }
 function cloudLeave(){
   if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
   clearTimeout(pushTimer); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
-function cloudLogout(){ closeSheet(); authTab = "login"; firebase.auth().signOut().catch(() => {}); }
+function cloudLogout(){ closeSheet(); authTab = "login"; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
 function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
-function cloudDirectory(){
-  const u = cuser, email = (u.email || "").toLowerCase(), nm = state.profile.name || "", hj = JSON.stringify(state.profile.health || null), tr = isTrainer() && !!u.emailVerified, sig = JSON.stringify([nm, tr, hj]);
-  if (!email || sig === lastDir) return Promise.resolve(); lastDir = sig;
-  return Promise.all([fdb.doc("users/" + u.uid).set({name:nm, email, apps:{contour:true}, contourHealth:hj}, {merge:true}), fdb.doc("directory/" + email).set({uid:u.uid, name:nm, trainer:tr})]);
+/* The directory lets a member find a trainer by email; it holds name, role and the public half of the key pair.
+   Health details go only into the account's own profile, encrypted with a key that is never shared. */
+async function cloudDirectory(){
+  const u = cuser, email = (u.email || "").toLowerCase(), nm = state.profile.name || "", h = state.profile.health || null, tr = isTrainer() && !!u.emailVerified, sig = JSON.stringify([nm, tr, h, vkeys.pub]);
+  if (!email || sig === lastDir) return; lastDir = sig;
+  const del = firebase.firestore.FieldValue.delete();
+  await Promise.all([fdb.doc("users/" + u.uid).set({name:nm, email, apps:{contour:true}, contourHealthE: await ContourVault.sealJSON(vkeys.hk, h), contourHealth:del}, {merge:true}),
+    fdb.doc("directory/" + email).set({uid:u.uid, name:nm, trainer:tr, pub:vkeys.pub})]);
 }
 async function cloudPush(){
-  if (!cuser || state.demo || viewing) return;
+  if (!cuser || state.demo || viewing || !vkeys) return;
   if (pushing){ pushDirty = true; return; } pushing = true; pushDirty = false;
   const base = fdb.doc(`${APP}/users/${cuser.uid}`), {days, ...own} = state, byMonth = {}, main = plain(own);
   if (main.profile.health && !main.profile.health.share) delete main.profile.health;
   for (const d of Object.keys(days)) if ((days[d] || []).length) (byMonth[d.slice(0,7)] = byMonth[d.slice(0,7)] || {})[d] = days[d];
-  const ops = [base.set({v:1, ts:state.ts, name:state.profile.name || "", json:JSON.stringify(main)})];
+  // Encrypted on this phone. The server stores only the timestamp and scrambled bytes.
+  const ops = [], k = vkeys.dk, box = await ContourVault.sealJSON(k, main);
+  ops.push(base.set({v:2, ts:state.ts, kw:vkeys.kw, iv:box.iv, ct:box.ct}));
   for (const m of new Set([...Object.keys(byMonth), ...Object.keys(monthSig)])){
     const j = byMonth[m] ? JSON.stringify(byMonth[m]) : null; if (monthSig[m] === j) continue;
-    if (j){ monthSig[m] = j; ops.push(base.collection("months").doc(m).set({json:j, ts:state.ts})); } else { delete monthSig[m]; ops.push(base.collection("months").doc(m).delete()); }
+    if (j){ monthSig[m] = j; const mb = await ContourVault.sealJSON(k, byMonth[m]); ops.push(base.collection("months").doc(m).set({ts:state.ts, iv:mb.iv, ct:mb.ct})); }
+    else { delete monthSig[m]; ops.push(base.collection("months").doc(m).delete()); }
   }
   ops.push(cloudDirectory());
   let done = false; const all = Promise.all(ops);
@@ -1127,6 +1243,7 @@ async function cloudPush(){
 }
 const AUTH_COPY = {"auth/email-already-in-use":"An account already uses that email. Log in instead.", "auth/invalid-email":"That email address does not look right.", "auth/weak-password":"Use a password of at least 8 characters.", "auth/wrong-password":"That email or password is not right.", "auth/user-not-found":"That email or password is not right.", "auth/invalid-credential":"That email or password is not right.", "auth/invalid-login-credentials":"That email or password is not right.", "auth/too-many-requests":"Too many tries. Wait a few minutes and try again.", "auth/network-request-failed":"No connection. You need to be online to log in or create an account.", "auth/user-disabled":"This account has been turned off."};
 function cloudGate(){
+  if (access === "vault") return vaultGate();
   if (access === "checking") return `<section class="card"><h1>Opening Contour</h1><p class="sub">One moment.</p></section>`;
   let known = false; try { known = Object.keys(localStorage).some(k => k.startsWith(LOCAL_KEY + ":") && k !== LOCAL_KEY + ":adopted"); } catch(e){}
   if (!authTab) authTab = known ? "login" : "signup";
@@ -1138,7 +1255,7 @@ function cloudGate(){
       <label class="f">Your name<input id="a-name" type="text" maxlength="30" required autocomplete="name" style="font-size:16px"></label>` : ""}
       <label class="f">Email<input id="a-email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label>
       <label class="f">Password<input id="a-pw" type="password" required minlength="8" autocomplete="${up ? "new-password" : "current-password"}" style="font-size:16px">${up ? `<small>At least 8 characters.</small>` : ""}</label>
-      ${up ? `<div class="note" style="font-size:13px"><b>Heads-up.</b> Your profile, food log, measurements and any health details are saved on your phone and in Pixora's cloud database, so they sync across your devices. Food photos go to Google Gemini to be recognised. Body scan photos never leave your phone. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13px">Read the full heads-up</button></div>
+      ${up ? `<div class="note" style="font-size:13px"><b>Heads-up.</b> Your profile, food log, measurements and any health details are saved on your phone and, encrypted so only you can read them, in Pixora's cloud. Food photo AI (Google Gemini) is off unless you turn it on. Body scan photos never leave your phone. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13px">Read the full heads-up</button></div>
       <label class="check"><input type="checkbox" id="a-age" required><span>I am 18 or older and I have read the heads-up.</span></label>` : ""}
       <div class="err" id="a-err"></div><button class="btn" id="a-go">${up ? "Create account" : "Log in"}</button></form>
     ${up ? "" : `<button class="linkbtn" data-act="pw-reset" style="color:var(--scan);font-size:13.5px;align-self:flex-start">Forgot your password?</button>`}
@@ -1186,8 +1303,13 @@ function cloudViewClients(){
 async function cloudOpenClient(cid){
   const c = clients.find(x => x.cid === cid); if (!c || viewing) return;
   const m = $("#cl-msg"); if (m){ m.style.color = "var(--muted)"; m.textContent = `Loading ${c.name}…`; }
-  let snap = null; try { snap = await Promise.race([cloudLoad(cid), late(12000)]); } catch(e){}
-  if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : `${c.name}'s profile could not be loaded. They may have stopped sharing, or not synced yet.`; return render(); }
+  let snap = null, why = "";
+  try {
+    const g = await Promise.race([fdb.doc(`${APP}/grants/${cid}_${cuser.uid}`).get(), late(10000)]), wk = g.exists ? (g.data() || {}).wk : null;
+    const key = wk && vkeys ? await ContourVault.openShared(vkeys, wk) : null;
+    snap = await Promise.race([cloudLoad(cid, key), late(12000)]);
+  } catch(e){ why = e && e.code === "nokey" ? "nokey" : ""; snap = null; }
+  if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : why === "nokey" ? `${c.name}'s data is encrypted and their key for you hasn't arrived yet. Ask them to open Contour once.` : `${c.name}'s profile could not be opened. They may have stopped sharing, or not synced yet.`; return render(); }
   delete snap._sig; delete snap.share; delete snap.profile.role; snap.profile.units = state.profile.units; clientMsg = "";
   ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now()}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
 }
@@ -1208,7 +1330,9 @@ async function cloudShareStart(el){
   try {
     const d = await Promise.race([fdb.doc("directory/" + email).get(), late(10000)]), t = d.exists ? d.data() : null;
     if (!t || !t.trainer || !t.uid){ el.disabled = false; return say("No trainer account uses that email. Ask them to create a Contour account as a trainer first."); }
-    await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today()}), late(10000)]);
+    if (!t.pub || !vkeys){ el.disabled = false; return say("Your trainer needs to open Contour once (it was just updated) before you can share with them."); }
+    const wk = await ContourVault.shareKey(vkeys, t.pub);
+    await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today(), wk}), late(10000)]);
     state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); cloudTexInit(true); reShare(`${esc(t.name || email)} can now see your profile.`);
   } catch(e){ el.disabled = false; say("Sharing could not be set up. Check your connection and try again."); }
 }
@@ -1216,6 +1340,8 @@ async function cloudShareStop(){
   const sh = state.share; if (!sh) return;
   if (offline()) return reShare("You are offline. Connect to stop sharing.");
   try { await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${sh.uid}`).delete(), late(10000)]); } catch(e){ return reShare("Sharing could not be stopped. Check your connection and try again."); }
+  // New data key: the trainer's copy of the old one can't open anything saved from now on.
+  try { const r = await ContourVault.rotate(vkeys); vkeys = Object.assign(r.keys, {kw:r.kw, uid:cuser.uid}); await ContourVault.keep(cuser.uid, vkeys); for (const m of Object.keys(monthSig)) monthSig[m] = "rotated"; } catch(e){}
   delete state.share; save(); cloudTexInit(true); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
 }
 /* ---------- health details ---------- */
@@ -1604,6 +1730,7 @@ async function cloudDeleteAccount(){
       each(fdb.collection(`${APP}/foods`).where("by", "==", uid)), each(fdb.collection(`${APP}/exercises`).where("by", "==", uid))]);
     await Promise.all([fdb.doc(`${APP}/users/${uid}`).delete(), fdb.doc("users/" + uid).delete(), email ? fdb.doc("directory/" + email).delete().catch(() => {}) : null].filter(Boolean));
     try { localStorage.removeItem(LOCAL_KEY + ":" + uid); } catch(e){}
+    ContourVault.forget(uid).catch(() => {}); vkeys = null;
     await u.delete();
     closeSheet(); authTab = "signup";
   } catch(e){ btn.disabled = false; btn.textContent = "Delete my account"; err.textContent = "Your data could not all be removed. Check your connection and try again."; }
@@ -1813,14 +1940,19 @@ function foodList(q){
   lastHits = hits;
   return hits.length ? hits.map((o,i) => { const f = o.a; return `<div class="foodrow"><div><b>${esc(f[0])}</b>${o.src !== "Common" ? `<span class="src">${o.src}</span>` : ""}<small>${f[1] ? esc(f[1]) + " · " : ""}${f[2]} kcal · P ${f[3]} C ${f[4]} F ${f[5]}${o.id && o.by && o.by === myId ? ` · <button class="linkbtn" data-act="delfood" data-id="${esc(o.id)}">Delete</button>` : ""}</small></div><button data-act="pickfood" data-i="${i}">Add</button></div>`; }).join("") : `<p class="sub" style="padding:10px 0">No match. Create it below and everyone using this app can find it next time.</p>`;
 }
+const aiAllowed = () => !(STANDALONE && CLOUD) || !!state.aiOn;
 function aiBlock(){
+  if (sampleFn && STANDALONE && CLOUD && !state.aiOn) return `<div class="ai"><b>Log from a photo or a description</b>
+    <p class="sub">Off. When you turn it on, the photo or text you give it is sent to Google's Gemini AI to name the foods. Google may keep it and people at Google may review it. Nothing else from Contour is sent, and you can turn it off any time.</p>
+    <button class="btn alt" data-act="ai-on">Turn on and send food photos to Gemini</button></div>`;
   if (!sampleFn) return STANDALONE ? "" : `<div class="ai"><b>Log from a photo</b><p class="sub">Photo and description logging work when this app is open inside Claude, signed in, and you allow it. Search the list below instead.</p></div>`;
   return `<div class="ai"><b>Log from a photo</b><p class="sub">Take a picture of your plate. The app names each food, then asks you how many grams of each.</p>
     ${STANDALONE ? `<p class="sub">Photos and descriptions are sent to Google Gemini to recognise the food. Do not include people in the picture.</p>` : ""}
     ${canImages ? `<label class="btn filebtn">Take or choose a photo<input type="file" id="ai-photo" accept="image/jpeg,image/png,image/webp" aria-label="Meal photo"></label>` : ""}
     <textarea id="ai-text" placeholder="Or describe it: 2 rotis, a bowl of dal and a small salad" aria-label="Describe what you ate"></textarea>
     <button class="btn alt" data-act="ai-text" id="ai-go">Find foods from the description</button>
-    <div id="ai-out">${aiResults()}</div></div>`;
+    <div id="ai-out">${aiResults()}</div>
+    ${STANDALONE && CLOUD ? `<button class="linkbtn" data-act="ai-off" style="font-size:13px;align-self:flex-start">Turn off photo and description AI</button>` : ""}</div>`;
 }
 const aiK = x => x.k100*x.g/100;
 function aiTotal(){ const n = aiItems.filter(x => x.g > 0).length; return n ? `Add ${n} food${n>1?"s":""} · ${Math.round(aiItems.reduce((a,x) => a + aiK(x), 0))} kcal` : "Enter grams to add"; }
@@ -1853,7 +1985,7 @@ function addEntry(o){ if (viewing) return false; if (state.demo) return needProf
 function needProfile(){ closeSheet(); profileSheet(); $("#p-err").textContent = "Set up your profile first so your entries are saved."; return false; }
 const AI_COPY = {not_granted:"Claude access was not allowed, so estimates are off.", rate_limited:"Too many requests right now. Try again in a minute.", refused:"That could not be estimated. Try describing the food differently.", invalid_json:"The estimate came back unreadable. Try again.", image_rejected:"That image could not be read. Try a JPEG or PNG.", session_expired:"Sign in to Claude again, then retry.", images_unavailable:"Photos are not available in this view. Describe the meal instead."};
 async function runAI(text, file){
-  const out = $("#ai-out"), btn = $("#ai-go"); if (!sampleFn || !out) return;
+  const out = $("#ai-out"), btn = $("#ai-go"); if (!sampleFn || !out || !aiAllowed()) return;
   if (aiCtl) aiCtl.abort(); aiCtl = new AbortController();
   out.innerHTML = aiResults(file ? "Looking at the photo…" : "Finding the foods…"); if (btn) btn.disabled = true;
   const prompt = 'You identify foods for a food log. Reply with only a JSON array, one object per distinct food or drink, shaped {"name": string, "grams": number, "kcal100": number, "p100": number, "c100": number, "f100": number}. name is a short plain name of the food as prepared. grams is your best estimate of the amount shown or described. kcal100, p100, c100 and f100 are calories and grams of protein, carbohydrate and fat per 100 g of that food as prepared. Example: [{"name":"Roti","grams":80,"kcal100":265,"p100":8,"c100":46,"f100":6}]. List each food separately, never a combined plate. If nothing is food, reply []. ' + (file ? "The meal is in the attached photo." + (text ? " Note from the person: " + text.slice(0,400) : "") : "The meal: " + text.slice(0,800));
@@ -1871,6 +2003,10 @@ async function runAI(text, file){
 /* ---------- actions ---------- */
 const num = id => { const el = $("#"+id); const v = el ? parseFloat(el.value) : NaN; return isFinite(v) ? v : null; };
 const actions = {
+  "vault-retry"(){ if (cuser){ vpend = null; access = "checking"; render(); cloudEnter(cuser).then(render); } },
+  "vault-forgot"(){ if (!vpend) return; if (!vpend.arm){ vpend.arm = 1; return render(); } vpend.mode = "reset"; vpend.arm = 0; vmsg = ""; render(); },
+  "ai-on"(){ if (viewing) return; if (state.demo) return needProfile(); state.aiOn = 1; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
+  "ai-off"(){ if (viewing) return; state.aiOn = 0; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
   close: closeSheet,
   profile: profileSheet,
   units(el){ state.profile.units = el.dataset.v; if (!state.demo) save(); profileSheet(); render(); },
@@ -2002,6 +2138,7 @@ const forms = {
     catch(e){ $("#tx-go").disabled = false; err.textContent = e && e.code === "permission-denied" ? "Publishing was refused. Confirm your email first, then try again." : "It could not be saved. Check your connection and try again."; }
   },
 
+  vault(){ vaultSubmit(); },
   chk(){ const el = $("#chk-code2") || $("#chk-code"), v = el ? el.value : ""; if ($("#chk-code2")){ closeSheet(); tab = "check"; } lookup(v); },
   mealcode(){ gotCodeTyped($("#meal-code").value); },
   tname(){ const n = ($("#t-name").value || "").trim(); if (!n) return; state.profile.name = n.slice(0, 30); save(); closeSheet(); render(); },
