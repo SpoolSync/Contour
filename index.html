@@ -1255,8 +1255,12 @@ async function jpegB64(file, max){
 }
 const geminiFn = {json: async (prompt, o) => {
   try {
-    if (!gemModel){ const V = "13.4.0", [A, AI] = await Promise.all([import(`https://www.gstatic.com/firebasejs/${V}/firebase-app.js`), import(`https://www.gstatic.com/firebasejs/${V}/firebase-ai.js`)]);
-      gemModel = AI.getGenerativeModel(AI.getAI(A.initializeApp(window.PIXORA_CLOUD, "pixora-ai"), {backend:new AI.GoogleAIBackend()}), {model:"gemini-2.5-flash"}); }
+    if (!gemModel){
+      // App Check proves requests come from this site (reCAPTCHA, invisible), so nobody else can spend the shared Gemini allowance.
+      const V = "13.4.0", B = `https://www.gstatic.com/firebasejs/${V}/`, [A, AI, AC] = await Promise.all([import(B + "firebase-app.js"), import(B + "firebase-ai.js"), import(B + "firebase-app-check.js")]);
+      const app = A.initializeApp(window.PIXORA_CLOUD, "pixora-ai");
+      if (window.PIXORA_CLOUD.recaptchaKey) AC.initializeAppCheck(app, {provider:new AC.ReCaptchaEnterpriseProvider(window.PIXORA_CLOUD.recaptchaKey), isTokenAutoRefreshEnabled:true});
+      gemModel = AI.getGenerativeModel(AI.getAI(app, {backend:new AI.GoogleAIBackend()}), {model:window.PIXORA_CLOUD.geminiModel || "gemini-3.5-flash-lite"}); }
     const parts = [prompt]; for (const f of (o && o.images) || []) parts.push({inlineData:{data:await jpegB64(f, 1280), mimeType:"image/jpeg"}});
     const txt = (await gemModel.generateContent(parts)).response.text().replace(/```(?:json)?/g, "").trim(), i = txt.search(/[\[{]/), j = Math.max(txt.lastIndexOf("]"), txt.lastIndexOf("}"));
     if (i < 0 || j < i) throw {code:"invalid_json"};
