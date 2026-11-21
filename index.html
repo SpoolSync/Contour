@@ -179,7 +179,7 @@ details.day summary small{color:var(--muted)}
 .check{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--muted)}
 .check input{width:18px;height:18px;margin-top:1px;accent-color:var(--scan)}
 .links a{color:var(--scan);font-weight:600}
-.gated nav.tabs,.gated #btn-profile{display:none}
+.gated nav.tabs,.gated #btn-profile,.gated #btn-help{display:none}
 .code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-weight:700;letter-spacing:.08em;font-size:15px}
 .coderow{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
 .coderow small{display:block;color:var(--muted);font-size:12px}
@@ -260,6 +260,50 @@ nav.tabs [data-tab="progress"]{display:none}
 .wkrow small{display:block;color:var(--muted)}
 #app:not(.cloudapp) nav.tabs [data-tab="texs"]{display:none}
 #app:not(.trainer) nav.tabs [data-tab="texs"]{display:none}
+#app.onboard nav.tabs,#app.onboard #btn-profile,#app.onboard #btn-help,#app.loading nav.tabs{display:none}
+.ob{display:flex;flex-direction:column;gap:16px;padding-bottom:8px;animation:obin .25s ease}
+@keyframes obin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.obtop{display:flex;align-items:center;gap:12px}
+.obback{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:22px;line-height:1;color:var(--ink);flex:none}
+.obbar{flex:1;height:6px;border-radius:99px;background:var(--sunk);overflow:hidden}
+.obbar i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+.ob h1{font-size:30px}
+.ob .why{margin:-8px 0 0;color:var(--muted);font-size:14px;line-height:1.45}
+.obhero{display:flex;flex-direction:column;gap:12px;padding:28px 0 6px}
+.obvals{display:flex;flex-direction:column;gap:10px}
+.obvals div{background:var(--surface);border-radius:var(--r);padding:14px 16px;display:flex;flex-direction:column;gap:3px;border-left:4px solid var(--accent)}
+.obvals small{color:var(--muted);font-size:13px}
+.opts{display:flex;flex-direction:column;gap:10px}
+.opts.two{display:grid;grid-template-columns:1fr 1fr}
+.opt{background:var(--surface);border:1.5px solid var(--line);border-radius:16px;padding:15px 16px;text-align:left;display:flex;flex-direction:column;gap:3px;color:var(--ink);font:inherit;transition:border-color .15s,transform .1s}
+.opt:active{transform:scale(.98)}
+.opt b{font-size:16px}
+.opt small{color:var(--muted);font-size:13px;line-height:1.35}
+.opt[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+.obfoot{display:flex;gap:10px;margin-top:4px;position:sticky;bottom:0;padding-top:8px;background:linear-gradient(transparent,var(--bg) 30%)}
+.obfig{max-height:330px}
+.obfig svg{max-height:330px}
+.obhealth details summary{display:none}
+.obhealth details > div > p.sub:first-child{display:none}
+.gsrow{display:flex;align-items:center;gap:12px;background:none;border:0;border-top:1px solid var(--line);padding:11px 0;text-align:left;font:inherit;color:var(--ink);font-weight:600;font-size:14.5px}
+.gsrow span:nth-child(2){flex:1}
+.gsrow .tick{width:24px;height:24px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:13px;color:#fff;flex:none}
+.gsrow.ok{color:var(--muted);text-decoration:line-through}
+.gsrow.ok .tick{background:var(--good);border-color:var(--good)}
+.invite{display:flex;align-items:center;justify-content:space-between;gap:10px;background:color-mix(in srgb,var(--scan) 12%,var(--surface));border-radius:14px;padding:10px 12px;font-size:13.5px;font-weight:500}
+.pillbtn{background:var(--ink);color:var(--bg);border:0;border-radius:999px;padding:8px 14px;font-weight:600;font-size:13px;white-space:nowrap}
+.pillbtn.alt{background:var(--sunk);color:var(--ink)}
+#tour{position:absolute;inset:0;z-index:9;pointer-events:auto}
+.tour-hl{position:absolute;border-radius:14px;box-shadow:0 0 0 9999px rgba(6,12,16,.62);transition:all .25s;pointer-events:none;outline:2px solid var(--accent)}
+.tour-tip{position:absolute;left:14px;right:14px;background:var(--surface);color:var(--ink);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:8px;box-shadow:0 10px 30px rgba(0,0,0,.25);animation:obin .2s ease}
+.tour-tip p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
+#toast{position:absolute;left:16px;right:16px;bottom:86px;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:500;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;z-index:8}
+#toast.on{opacity:1;transform:none;pointer-events:auto}
+#toast .linkbtn{color:var(--accent);font-size:14px}
+.example{opacity:.55;border:1.5px dashed var(--line);background:transparent;position:relative}
+.example .extag{position:absolute;top:10px;right:12px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.skel{background:linear-gradient(90deg,var(--sunk),var(--surface),var(--sunk));background-size:200% 100%;animation:sk 1.2s infinite;border-radius:var(--r)}
+@keyframes sk{to{background-position:-200% 0}}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -267,7 +311,7 @@ nav.tabs [data-tab="progress"]{display:none}
 <div id="app">
   <header class="top">
     <div class="brand">contour<i>.</i></div>
-    <div class="row"><span class="sync" id="sync"></span><button class="ghost" data-act="profile" id="btn-profile">Profile</button></div>
+    <div class="row"><span class="sync" id="sync"></span><button class="ghost" data-act="tour" id="btn-help" aria-label="Show tips for this screen" style="width:34px;padding:7px 0">?</button><button class="ghost" data-act="profile" id="btn-profile">Profile</button></div>
   </header>
   <main id="view"></main>
   <nav class="tabs" aria-label="Sections">
@@ -383,19 +427,8 @@ const FOODS = [
 const MEALS = ["Breakfast","Lunch","Dinner","Snacks"];
 
 /* ---------- state ---------- */
-function demoState(){
-  const t = today();
-  const mk = (name, meal, qty=1) => { const f = FOODS.find(x => x[0] === name); return {id:uid(), meal, name:f[0], serv:f[1], qty, kcal:f[2], p:f[3], c:f[4], f:f[5]}; };
-  const sc = (d, kg, neck, waist, hip, chest, arm, thigh) => ({d, kg, neck, waist, hip, chest, arm, thigh, bf:bodyFat("m",178,neck,waist,hip)});
-  const days = {};
-  days[t] = [mk("Oatmeal, cooked","Breakfast"), mk("Egg, whole","Breakfast",2), mk("Masala chai with milk","Breakfast"), mk("Chicken curry","Lunch"), mk("Roti / chapati","Lunch",2), mk("Almonds","Snacks")];
-  [2150,1980,2340,1890,2060,2210].forEach((k,i) => { days[daysAgo(i+1)] = [{id:uid(), meal:"Lunch", name:"Example day total", serv:"", qty:1, kcal:k, p:130, c:210, f:70}]; });
-  return {v:1, ts:0, demo:true,
-    profile:{sex:"m", age:32, height:178, activity:1.375, pace:0.5, units:"metric", equip:"home", bmiScale:"standard", goalKg:80},
-    myFoods:[], weights:[[56,88.4],[49,88.0],[42,87.6],[35,87.5],[28,86.9],[21,86.6],[14,86.4],[7,86.0],[3,85.6]].map(([n,kg]) => ({d:daysAgo(n), kg})),
-    scans:[sc(daysAgo(56),88.4,39.5,97,103,104,35.5,61), sc(daysAgo(28),86.9,39,94.5,102,103.5,35.5,60), sc(daysAgo(3),85.6,38.5,92,101,103,35.8,59.5)],
-    days, focus:["belly"], done:{[daysAgo(3)]:true,[daysAgo(1)]:true,[daysAgo(5)]:true}, water:{[t]:5,[daysAgo(1)]:7,[daysAgo(2)]:8,[daysAgo(3)]:6}};
-}
+// "Not set up yet": an empty state. Sample numbers are never stored or shown as the person's own.
+function demoState(){ return {v:1, ts:0, demo:true, profile:{sex:"m", age:30, height:170, activity:1.375, pace:0, units:"metric", equip:"home", bmiScale:"standard"}, weights:[], scans:[], days:{}, focus:[], done:{}, myFoods:[], water:{}}; }
 function freshState(profile){ return {v:1, ts:Date.now(), demo:false, profile, weights:[], scans:[], days:{}, focus:[], done:{}, myFoods:[], water:{}, cid:uid() + uid()}; }
 function normalise(s){
   if (!s || typeof s !== "object" || !s.profile) return null;
@@ -661,7 +694,7 @@ let tab = "today", scanning = false;
 const TABS = ["texs","home","today","scan","focus","progress","reports","check","clients"];
 function banner(){
   if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
-  return state.demo ? `<div class="banner"><span>These are example numbers so you can see how it works.</span><button data-act="profile">Use my numbers</button></div>` : "";
+  return "";
 }
 function dayTotals(d){ const t = {kcal:0,p:0,c:0,f:0}; for (const e of (state.days[d]||[])){ t.kcal += e.kcal*e.qty; t.p += e.p*e.qty; t.c += e.c*e.qty; t.f += e.f*e.qty; } return t; }
 
@@ -709,6 +742,7 @@ function viewHome(){
     <button class="tile" data-act="nav" data-v="focus"><label>Today's workout</label><span class="num" style="font-size:19px">${esc(day.t)}</span><span class="sub">${done ? "Done ✓" : esc(day.s)}</span></button>
     <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
   </div>
+  ${startCard()}
   ${winsCard()}
   <button class="btn alt" data-act="nav" data-v="reports">See your weekly report</button>`;
 }
@@ -730,9 +764,11 @@ function viewToday(){
     ${es.map(e => `<div class="entry"><div><b>${esc(e.name)}</b><small>${e.serv ? esc(e.serv) + " · " : ""}${Math.round(e.kcal*e.qty)} kcal · ${Math.round(e.p*e.qty)} g protein</small></div>
       <div class="step"><button data-act="qty" data-id="${e.id}" data-d="-0.5" aria-label="Less ${esc(e.name)}">−</button><span>${e.qty}×</span><button data-act="qty" data-id="${e.id}" data-d="0.5" aria-label="More ${esc(e.name)}">+</button></div></div>`).join("")}
     <button class="add" data-act="addfood" data-meal="${m}">Add to ${m.toLowerCase()}</button></section>`; }).join("");
+  const isEmpty = !viewing && !(state.days[vd()] || []).length && !Object.values(state.days).some(x => x && x.length);
   return `${banner()}
+  ${isEmpty ? `<section class="card example" aria-label="Example"><span class="extag">Example</span><h2>Breakfast</h2><div class="entry" style="pointer-events:none"><div><b>Oatmeal with banana</b><small>1 bowl · 290 kcal · P 9 C 54 F 5</small></div></div><p class="sub">This is how a logged meal looks. Tap "Add to breakfast" below to log your own. Nothing here counts toward your day.</p></section>` : ""}
   <div class="daynav"><button data-act="day" data-d="-1" aria-label="Previous day">‹</button><div style="flex:1"><h1>${left >= 0 ? `${left} kcal left` : `${-left} kcal over`}${vd() === today() ? " today" : ""}</h1></div><button data-act="day" data-d="1" aria-label="Next day" ${vd() === today() ? "disabled" : ""}>›</button></div>
-  <div><p class="sub">${parseD(vd()).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})} · target ${tg.kcal} kcal for about ${state.profile.pace} kg a week${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
+  <div><p class="sub">${parseD(vd()).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})} · target ${tg.kcal} kcal ${paceText()}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
   <section class="card"><div class="ringwrap">
     <div class="ring"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="56" fill="none" stroke="var(--sunk)" stroke-width="12"/><circle cx="66" cy="66" r="56" fill="none" stroke="${left < 0 ? "var(--watch)" : "var(--accent)"}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-frac)}"/></svg>
       <div class="mid"><span class="num">${Math.round(t.kcal)}</span><small>of ${tg.kcal} kcal</small></div></div>
@@ -798,7 +834,7 @@ function applyImport(code){
   let o; try { o = JSON.parse(decodeURIComponent(escape(atob(String(code).trim().replace(/^CONTOUR1:/i, "").replace(/\s+/g, ""))))); } catch(e){ return "That code could not be read. Paste the whole thing, starting with CONTOUR1."; }
   const ip = o.p || {}, m = o.m ? cleanMachine(o.m) : null, age = Math.round(+ip.age), h = +ip.height;
   if (!(age >= 18 && age <= 95) || !(h >= 120 && h <= 230) || !m) return "That code is missing a profile or a scan.";
-  const p = {name:String(ip.name || "").slice(0,30), sex:ip.sex === "f" ? "f" : "m", age, height:r1(h), activity:[1.2,1.375,1.55,1.725].includes(+ip.activity) ? +ip.activity : 1.375, pace:[0,0.25,0.5,0.75].includes(+ip.pace) ? +ip.pace : 0.5, units:ip.units === "imperial" ? "imperial" : "metric", equip:state.demo ? "home" : state.profile.equip, bmiScale:state.demo ? "standard" : state.profile.bmiScale, goalKg:state.demo ? null : state.profile.goalKg, health:state.demo ? undefined : state.profile.health};
+  const p = {name:String(ip.name || "").slice(0,30), sex:ip.sex === "f" ? "f" : "m", age, height:r1(h), activity:[1.2,1.375,1.55,1.725].includes(+ip.activity) ? +ip.activity : 1.375, pace:[-0.25,0,0.25,0.5,0.75].includes(+ip.pace) ? +ip.pace : 0.5, units:ip.units === "imperial" ? "imperial" : "metric", equip:state.demo ? "home" : state.profile.equip, bmiScale:state.demo ? "standard" : state.profile.bmiScale, goalKg:state.demo ? null : state.profile.goalKg, health:state.demo ? undefined : state.profile.health};
   if (state.demo) state = freshState(p); else state.profile = p;
   addMachineScan(m); save(); return "";
 }
@@ -1035,7 +1071,7 @@ function trainerSheet(){
   <form data-form="tname" style="display:flex;flex-direction:column;gap:12px"><label class="f">Name your clients will see<input id="t-name" type="text" maxlength="30" required value="${esc(state.profile.name || "")}" style="font-size:16px"></label>
     <div class="seg" role="group" aria-label="Units"><button type="button" data-act="units" data-v="metric" aria-pressed="${!imp()}">kg · cm</button><button type="button" data-act="units" data-v="imperial" aria-pressed="${imp()}">lb · in</button></div>
     <button class="btn">Save</button>${CLOUD ? "" : `<p class="sub">Changing your name changes your Trainer ID text, but IDs you already sent keep working.</p>`}</form>
-  ${CLOUD && cuser ? `<div class="owner"><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export my data</button><button type="button" class="btn alt" data-act="del-open" style="color:var(--high)">Delete account</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div></div>` : ""}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
+  ${CLOUD && cuser ? `<div class="owner"><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export my data</button><button type="button" class="btn alt" data-act="del-open" style="color:var(--high)">Delete Contour data</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div></div>` : ""}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 /* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
 const APP = "apps/contour";
@@ -1153,9 +1189,10 @@ async function cloudEnter(u){
   if (!(await vaultReady(u))) return;
   localKey = LOCAL_KEY + ":" + u.uid;
   let local = null; try { local = normalise(JSON.parse(localStorage.getItem(localKey))); } catch(e){}
-  state = local || demoState(); access = "open"; render();
+  state = local || demoState(); access = "open"; acctLoading = !local; render();
   let remote = null, reached = false; if (!vforce) try { remote = await Promise.race([cloudLoad(u.uid), late(9000)]); reached = true; } catch(e){}
   if (cuser !== u) return;
+  acctLoading = false;
   let legacy = false;
   if (remote){ monthSig = remote._sig || {}; legacy = remote._legacy; delete remote._sig; delete remote._legacy; }
   if (remote && (!local || (remote.ts || 0) > (local.ts || 0))){ state = remote; putLocal(); setSync("Synced"); if (legacy) cloudQueue(); }
@@ -1168,6 +1205,7 @@ async function cloudEnter(u){
       try { localStorage.setItem(LOCAL_KEY + ":adopted", u.uid); } catch(e){} save(); }
     else { pendingName = pendingName || u.displayName || ""; if (pendingRole === "trainer") await cloudBecomeTrainer(pendingName); else { tab = "home"; render(); } }
   } else setSync("Offline. Connect once to load your account.");
+  render();
   if (mainUnsub) mainUnsub();
   mainUnsub = fdb.doc(`${APP}/users/${u.uid}`).onSnapshot(snap => {
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
@@ -1208,7 +1246,7 @@ function dashKick(ms){
 }
 function cloudLeave(){
   if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
-  clearTimeout(pushTimer); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
+  clearTimeout(pushTimer); acctLoading = false; ob = null; obForce = false; tourEnd(); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
 function cloudLogout(){ closeSheet(); authTab = "login"; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
 function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
@@ -1719,32 +1757,200 @@ async function cloudDeleteAccount(){
   const err = $("#del-err"), btn = $("#del-go"), pw = ($("#del-pw") || {}).value || "", u = cuser;
   if (!$("#del-ok").checked) return err.textContent = "Tick the box to confirm.";
   if (!pw) return err.textContent = "Enter your password.";
-  if (offline()) return err.textContent = "You need a connection to delete your account.";
+  if (offline()) return err.textContent = "You need a connection to delete your Contour data.";
   btn.disabled = true; btn.textContent = "Deleting…";
   try { await u.reauthenticateWithCredential(firebase.auth.EmailAuthProvider.credential(u.email, pw)); }
-  catch(e){ btn.disabled = false; btn.textContent = "Delete my account"; return err.textContent = e && e.code === "auth/network-request-failed" ? AUTH_COPY[e.code] : "That password is not right."; }
+  catch(e){ btn.disabled = false; btn.textContent = "Delete my Contour data"; return err.textContent = e && e.code === "auth/network-request-failed" ? AUTH_COPY[e.code] : "That password is not right."; }
   const uid = u.uid, email = (u.email || "").toLowerCase();
-  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; texStop(); clearTimeout(pushTimer);
+  if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); mainUnsub = grantsUnsub = null; texStop(); clearTimeout(pushTimer);
   const each = q => q.get().then(sn => { const a = []; sn.forEach(dd => a.push(dd.ref.delete())); return Promise.all(a); });
   try {
     await Promise.all([each(fdb.collection(`${APP}/users/${uid}/months`)), each(fdb.collection(`${APP}/grants`).where("member", "==", uid)), each(fdb.collection(`${APP}/grants`).where("trainer", "==", uid)),
       each(fdb.collection(`${APP}/foods`).where("by", "==", uid)), each(fdb.collection(`${APP}/exercises`).where("by", "==", uid))]);
-    await Promise.all([fdb.doc(`${APP}/users/${uid}`).delete(), fdb.doc("users/" + uid).delete(), email ? fdb.doc("directory/" + email).delete().catch(() => {}) : null].filter(Boolean));
+    await fdb.doc(`${APP}/users/${uid}`).delete();
+    // The Pixora account itself stays. Only Contour's parts of the shared records are cleared.
+    await fdb.doc("users/" + uid).set({apps:{contour:false}, contourHealth:null, contourHealthE:null}, {merge:true}).catch(() => {});
+    if (email) await fdb.doc("directory/" + email).set({uid, name:"", trainer:false}).catch(() => {});
     try { localStorage.removeItem(LOCAL_KEY + ":" + uid); } catch(e){}
     ContourVault.forget(uid).catch(() => {}); vkeys = null;
-    await u.delete();
-    closeSheet(); authTab = "signup";
-  } catch(e){ btn.disabled = false; btn.textContent = "Delete my account"; err.textContent = "Your data could not all be removed. Check your connection and try again."; }
+    closeSheet(); monthSig = {}; lastDir = ""; clients = []; texAll = new Map(); state = demoState(); ob = null; tab = "home";
+    render(); await cloudEnter(u); render(); toast("Your Contour data is deleted. Your Pixora login still works.");
+  } catch(e){ btn.disabled = false; btn.textContent = "Delete my Contour data"; err.textContent = "Some of your data could not be removed. Check your connection and try again."; }
 }
 function deleteSheet(){
-  openSheet(`${head("Delete my account")}
+  openSheet(`${head("Delete my Contour data")}
     <p>This permanently deletes your Contour profile, food log, scans, measurements, health details, the foods you shared${isTrainer() ? ", the exercises you wrote" : ""} and any trainer sharing. It cannot be undone.</p>
-    <p class="note">Your Pixora account is also your login for other Pixora apps. Deleting it removes that login too. Export your data first if you want a copy.</p>
+    <p class="note">Your Pixora login is not deleted. You can still sign in to other Pixora apps, or start Contour again from scratch. Export your data first if you want a copy.</p>
     <form data-form="del" style="display:flex;flex-direction:column;gap:12px">
       <label class="f">Your password<input id="del-pw" type="password" autocomplete="current-password"></label>
       <label class="check"><input type="checkbox" id="del-ok"><span>I understand this is permanent.</span></label>
-      <div class="err" id="del-err"></div><button class="btn" id="del-go" style="background:var(--high);color:#fff">Delete my account</button></form>`);
+      <div class="err" id="del-err"></div><button class="btn" id="del-go" style="background:var(--high);color:#fff">Delete my Contour data</button></form>`);
 }
+/* ---------- first-run setup: one question per screen, every answer shapes the plan ---------- */
+let ob = null, obForce = false, acctLoading = false;
+const needsSetup = () => !viewing && !isTrainer() && (obForce || state.demo || (!state.profile.setup && !state.weights.length && !state.scans.length));
+const GOALS = [["lose","Lose fat","A steady calorie deficit, with strength work so the weight that comes off is fat."],["tone","Tone up and maintain","Eat at maintenance and build firmer muscle where you want it."],["gain","Build muscle","A small surplus and more protein so you gain muscle, not much fat."],["health","Feel healthier","Better habits first: regular meals, protein, water and movement."]];
+const ACTS = [[1.2,"Mostly sitting","Desk job, little walking"],[1.375,"Lightly active","Some walking most days"],[1.55,"On my feet a lot","Retail, teaching, lots of stairs"],[1.725,"Physical job","Construction, warehouse, trades"]];
+function obInit(){
+  // Only prefill values the person actually gave. Placeholder defaults are never presented as theirs.
+  const real = !state.demo && (state.profile.setup || state.weights.length || state.scans.length), P = real ? state.profile : {name:state.demo ? "" : state.profile.name, units:state.demo ? undefined : state.profile.units, health:state.demo ? undefined : state.profile.health}, k = real && state.weights.length ? curKg() : null;
+  const units = P.units || (/^en-(US|LR|MM)$/i.test(navigator.language || "") ? "imperial" : "metric");
+  ob = {i:0, err:"", side:"f", d:{name:P.name || pendingName || (cuser && cuser.displayName) || "", goal:P.goal || (P.pace > 0 ? "lose" : P.pace < 0 ? "gain" : ""), sex:P.sex || "", age:P.age || "", height:P.height || "", kg:k || "", units, activity:P.activity || "", pace:P.pace != null && !state.demo ? P.pace : 0.5, goalKg:P.goalKg || "", equip:P.equip || "home", focus:state.demo ? [] : [...state.focus], health:P.health, bmiScale:P.bmiScale || "standard"}};
+}
+function obSteps(){ const g = ob.d.goal; return ["welcome","name","goal","about","body","activity", ...(g === "lose" || g === "gain" ? ["pace"] : []), "train","health","plan"]; }
+const obCm = () => { const D = ob.d; return D.height || null; };
+function obBody(){
+  const D = ob.d, imp2 = D.units === "imperial", h = D.height, ft = h ? Math.floor(h/2.54/12) : "", inch = h ? Math.round(h/2.54 - ft*12) : "";
+  const w = D.kg ? r1(imp2 ? D.kg*2.20462 : D.kg) : "";
+  return `<div class="seg" role="group" aria-label="Units" style="align-self:flex-start"><button type="button" data-act="ob-units" data-v="metric" aria-pressed="${!imp2}">cm · kg</button><button type="button" data-act="ob-units" data-v="imperial" aria-pressed="${imp2}">ft · lb</button></div>
+    ${imp2 ? `<div class="grid2"><label class="f">Height, feet<input id="ob-ft" type="number" inputmode="numeric" min="3" max="7" value="${ft}"></label><label class="f">Inches<input id="ob-in" type="number" inputmode="numeric" min="0" max="11" value="${inch}"></label></div>`
+      : `<label class="f">Height (cm)<input id="ob-h" type="number" inputmode="decimal" value="${h ? r1(h) : ""}"></label>`}
+    <label class="f">Weight today (${imp2 ? "lb" : "kg"})<input id="ob-w" type="number" inputmode="decimal" step="0.1" value="${w}"></label>
+    <p class="sub" id="ob-bmi" aria-live="polite">${obBmiLine()}</p>`;
+}
+function obReadBody(){
+  const D = ob.d, n = id => { const e = $("#" + id); if (!e || e.value === "") return null; const v = parseFloat(e.value); return isFinite(v) ? v : null; };
+  let h = null; if (D.units === "imperial"){ const ft = n("ob-ft"), i = n("ob-in") || 0; if (ft != null) h = (ft*12 + i)*2.54; } else h = n("ob-h");
+  const w = n("ob-w"); return {h, kg:w == null ? null : D.units === "imperial" ? w/2.20462 : w};
+}
+function obBmiLine(){
+  const D = ob.d; if (!$("#ob-w")) { if (!(D.height && D.kg)) return "Used for your BMI and calorie target."; }
+  const r = $("#ob-w") ? obReadBody() : {h:D.height, kg:D.kg}; if (!(r.h > 120 && r.h < 230 && r.kg > 30 && r.kg < 300)) return "Used for your BMI and calorie target.";
+  const b = bmiInfo({height:r.h, bmiScale:D.bmiScale}, r.kg); return `BMI ${b.v} (${b.label}). A healthy weight for your height is about ${showWtU(b.lo)}–${showWtU(b.hi)}.`;
+}
+const showWtU = kg => ob && ob.d.units === "imperial" ? `${Math.round(kg*2.20462)} lb` : `${Math.round(kg)} kg`;
+function obProfile(){
+  const D = ob.d, pace = D.goal === "lose" ? (D.pace > 0 ? D.pace : 0.5) : D.goal === "gain" ? -0.25 : 0;
+  return {name:String(D.name || "").trim().slice(0, 30), sex:D.sex, age:Math.round(D.age), height:r1(D.height), activity:+D.activity, pace, units:D.units, equip:D.equip, bmiScale:D.bmiScale, goalKg:D.goalKg ? r1(D.goalKg) : undefined, goal:D.goal, health:D.health, setup:1};
+}
+function viewOnboard(){
+  if (!ob) obInit(); const steps = obSteps(); ob.i = Math.min(ob.i, steps.length-1); const s = steps[ob.i], D = ob.d, N = steps.length - 1 + (D.goal ? 0 : 1), fn = (D.name || "").split(" ")[0];
+  const opt = (k, v, t, d, on) => `<button type="button" class="opt" data-act="ob-pick" data-k="${k}" data-v="${v}" aria-pressed="${on}"><b>${t}</b>${d ? `<small>${d}</small>` : ""}</button>`;
+  const top = s === "welcome" ? "" : `<div class="obtop"><button class="obback" data-act="ob-back" aria-label="Back">‹</button><div class="obbar" role="progressbar" aria-valuemin="0" aria-valuemax="${N}" aria-valuenow="${ob.i}"><i style="width:${ob.i/N*100}%"></i></div><span class="sub">${ob.i} of ${N}</span></div>`;
+  const foot = (label, skip) => `<div class="err" id="ob-err" role="alert">${esc(ob.err || "")}</div><div class="obfoot">${skip ? `<button class="btn alt" data-act="ob-skip">Skip for now</button>` : ""}<button class="btn" data-act="ob-next">${label || "Continue"}</button></div>`;
+  const why = t => `<p class="why">${t}</p>`;
+  let body = "";
+  if (s === "welcome") body = `<div class="obhero">
+      <h1>${state.demo ? "Let's build your plan" : "Let's finish your profile"}</h1><p class="sub" style="font-size:15px">A few quick questions, about a minute. Every answer changes your calorie target, your workouts or the advice you see.</p></div>
+      <div class="obvals"><div><b>Your own calorie and protein targets</b><small>Worked out from your body and your goal, not a generic number.</small></div><div><b>A body figure shaped like you</b><small>Tap any part for the exercises that train it.</small></div><div><b>A weekly plan you can follow</b><small>Home or gym, with a guided workout and rest timer.</small></div></div>
+      <div class="obfoot"><button class="btn" data-act="ob-next">${state.demo ? "Get started" : "Review my details"}</button></div>
+      ${!CLOUD && subtle && state.demo ? `<button class="linkbtn" data-act="ob-trainer" style="color:var(--muted);font-size:13px;align-self:center">I am a fitness trainer</button>` : ""}`;
+  else if (s === "name") body = `<h1>What should we call you?</h1>${why("Your first name shows on your home screen and on reports you share.")}
+      <label class="f">First name<input id="ob-name" type="text" maxlength="30" autocomplete="given-name" value="${esc(D.name)}"></label>${foot()}`;
+  else if (s === "goal") body = `<h1>${fn ? esc(fn) + ", what" : "What"} matters most right now?</h1>${why("Your goal sets your daily calories and the advice you get. You can change it any time in Profile.")}
+      <div class="opts">${GOALS.map(([v,t,d]) => opt("goal", v, t, d, D.goal === v)).join("")}</div>${foot()}`;
+  else if (s === "about") body = `<h1>A little about you</h1>${why("Your sex and age go into the standard formulas for calories burned and body fat. Nothing else uses them.")}
+      <div class="opts two">${opt("sex","m","Male","",D.sex==="m")}${opt("sex","f","Female","",D.sex==="f")}</div>
+      <label class="f">Age<input id="ob-age" type="number" inputmode="numeric" min="18" max="95" value="${D.age || ""}"></label>${foot()}`;
+  else if (s === "body") body = `<h1>Height and weight</h1>${why("These set your starting point. Your progress charts begin from today's weight.")}${obBody()}${foot()}`;
+  else if (s === "activity") body = `<h1>How active is your day, outside workouts?</h1>${why("Most people underestimate this. Pick the one that sounds like a normal weekday.")}
+      <div class="opts">${ACTS.map(([v,t,d]) => opt("activity", v, t, d, +D.activity === v)).join("")}</div>${foot()}`;
+  else if (s === "pace"){
+    const P = obProfile(), tdee = targets({...P, pace:0}, D.kg).tdee;
+    const opts = D.goal === "gain" ? [[-0.25,"Lean gain","About 0.25 kg a week"]] : [[0.25,"Gentle","About 0.25 kg a week"],[0.5,"Steady","About 0.5 kg a week · most people"],[0.75,"Fast","About 0.75 kg a week · harder to keep up"]];
+    body = `<h1>${D.goal === "gain" ? "How fast to gain?" : "How fast do you want to go?"}</h1>${why(`You burn about ${tdee.toLocaleString()} kcal a day. ${D.goal === "gain" ? "A small surplus keeps fat gain low." : "Slower is easier to stick with, and you keep more muscle."}`)}
+      ${D.goal === "gain" && bmiInfo({height:D.height, bmiScale:D.bmiScale}, D.kg).v >= 27 ? `<p class="note">At your BMI, many people get better results by eating at maintenance while strength training: you build muscle and lose fat at the same time. Go back and pick "Tone up and maintain" if you'd like that instead.</p>` : ""}
+      <div class="opts">${opts.map(([v,t,d]) => opt("pace", v, `${t} · ${targets({...P, pace:v}, D.kg).kcal.toLocaleString()} kcal a day`, d.replace("0.25 kg", D.units === "imperial" ? "½ lb" : "0.25 kg").replace("0.5 kg", D.units === "imperial" ? "1 lb" : "0.5 kg").replace("0.75 kg", D.units === "imperial" ? "1½ lb" : "0.75 kg"), +D.pace === v || (D.goal === "gain" && v < 0))).join("")}</div>
+      <label class="f">Goal weight (${D.units === "imperial" ? "lb" : "kg"}, optional)<input id="ob-goal" type="number" inputmode="decimal" step="0.1" value="${D.goalKg ? r1(D.units === "imperial" ? D.goalKg*2.20462 : D.goalKg) : ""}"></label>${foot()}`;
+  }
+  else if (s === "train") body = `<h1>Where will you train, and what do you want to work on?</h1>${why("Your weekly plan uses only the equipment you have, and puts extra work on up to three areas you pick.")}
+      <div class="opts two">${opt("equip","home","At home","Bodyweight and bands",D.equip==="home")}${opt("equip","gym","At a gym","Machines and weights",D.equip==="gym")}</div>
+      <div class="row between"><span class="f">Tap up to three areas</span><div class="seg" role="group" aria-label="View"><button data-act="ob-side" data-v="f" aria-pressed="${ob.side==="f"}">Front</button><button data-act="ob-side" data-v="b" aria-pressed="${ob.side==="b"}">Back</button></div></div>
+      <div class="figwrap obfig">${figure({side:ob.side, sel:D.focus, pick:true, act:"ob-part"})}</div>
+      <div class="chips">${D.focus.length ? D.focus.map(k => `<span class="chip on">${esc(REGIONS[k].label)}</span>`).join("") : `<span class="sub">Nothing picked yet. We'll start with a balanced plan.</span>`}</div>${foot("Continue", !D.focus.length)}`;
+  else if (s === "health") body = `<h1>Anything we should look out for?</h1>${why("Allergies and conditions let the Check tab flag products that may not suit you. This stays private unless you choose to share it with a trainer.")}
+      <div class="obhealth">${healthFields(D.health).replace("<details ", "<details open ")}</div>${foot("Continue", true)}`;
+  else if (s === "plan"){
+    const P = obProfile(), tg = targets(P, D.kg), b = bmiInfo(P, D.kg), gap = P.goalKg ? D.kg - P.goalKg : 0, wks = P.pace > 0 && gap > 0 ? Math.ceil(gap/P.pace) : P.pace < 0 && gap < 0 ? Math.ceil(-gap/0.25) : 0;
+    const gl = GOALS.find(g => g[0] === P.goal), done = new Date(Date.now() + wks*7*864e5).toLocaleDateString(undefined, {month:"long", year:"numeric"});
+    body = `<h1>Your plan${fn ? ", " + esc(fn) : ""}</h1>${why(`Built for: ${gl ? gl[1].toLowerCase() : "your goal"}. Change anything later in Profile.`)}
+      <section class="hero"><small>Daily calories</small><span class="num" style="font-size:44px">${tg.kcal.toLocaleString()}</span><small>You burn about ${tg.tdee.toLocaleString()} a day. ${P.pace > 0 ? `Eating ${(tg.tdee - tg.kcal).toLocaleString()} less loses about ${D.units === "imperial" ? {0.25:"½ lb",0.5:"1 lb",0.75:"1½ lb"}[P.pace] : P.pace + " kg"} a week.` : P.pace < 0 ? `A ${(tg.kcal - tg.tdee).toLocaleString()} kcal surplus supports muscle gain.` : "You eat what you burn."}${tg.floored ? " Held at a safe minimum." : ""}</small></section>
+      <div class="tiles"><div class="tile"><label>Protein</label><span class="num">${tg.p}<small> g</small></span><span class="sub">a day, to keep or build muscle</span></div><div class="tile"><label>Water</label><span class="num">${WATER_GOAL}<small> glasses</small></span><span class="sub">a day</span></div>
+        <div class="tile"><label>BMI</label><span class="num">${b.v}</span><span class="sub">${esc(b.label)}</span></div><div class="tile"><label>${wks ? "Goal weight" : "Workouts"}</label><span class="num">${wks ? showWtU(P.goalKg) : "6"}</span><span class="sub">${wks ? `around ${done}` : "short sessions a week"}</span></div></div>
+      <section class="card"><h2>Your first week</h2><p class="sub">${P.equip === "gym" ? "Gym" : "Home"} workouts${D.focus.length ? ` with extra work on ${D.focus.map(k => REGIONS[k].label.toLowerCase()).join(", ")}` : ""}. Open Plan to start today's session.</p></section>
+      <p class="note" style="font-size:13px">${CLOUD ? "Your data is saved to your Pixora account so you can use it on any device. Food photos go to Google Gemini to be read. Body scan photos never leave your phone." : "Your data stays on this device."} <button class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13px">Read the full notice</button></p>
+      ${foot("Start my plan")}`;
+  }
+  return `<div class="ob">${top}${body}</div>`;
+}
+function obStash(){ if (!ob) return; const D = ob.d, v = id => { const e = $("#" + id); return e ? e.value : null; };
+  if (v("ob-name") != null) D.name = v("ob-name"); if (v("ob-age")) D.age = +v("ob-age");
+  if ($("#ob-w")){ const r = obReadBody(); if (r.h) D.height = r.h; if (r.kg) D.kg = r.kg; }
+  if (v("ob-goal") != null){ const g = parseFloat(v("ob-goal")); D.goalKg = isFinite(g) ? (D.units === "imperial" ? g/2.20462 : g) : ""; }
+  if ($("[data-hl]")) D.health = readHealth(); }
+function obCollect(){
+  const s = obSteps()[ob.i], D = ob.d, num2 = id => { const e = $("#" + id); if (!e || e.value === "") return null; const v = parseFloat(e.value); return isFinite(v) ? v : null; };
+  if (s === "name"){ const n = ($("#ob-name").value || "").trim(); if (!n) return "Enter your first name."; D.name = n.slice(0, 30); }
+  if (s === "goal" && !D.goal) return "Pick one.";
+  if (s === "about"){ const a = num2("ob-age"); if (!D.sex) return "Pick one, so the formulas are right."; if (a == null) return "Enter your age."; if (a < 18) return "Contour is for adults aged 18 and over."; if (a > 95) return "Check your age."; D.age = Math.round(a); }
+  if (s === "body"){ const r = obReadBody(); if (r.h == null || r.kg == null) return "Enter your height and weight.";
+    if (r.h < 120 || r.h > 230) return "That height looks off. Check the units."; if (r.kg < 30 || r.kg > 300) return "That weight looks off. Check the units."; D.height = r.h; D.kg = r.kg; }
+  if (s === "activity" && !D.activity) return "Pick the closest one.";
+  if (s === "pace"){ const g = num2("ob-goal"); if (g != null){ const kg = D.units === "imperial" ? g/2.20462 : g; if (kg < 30 || kg > 300) return "That goal weight looks off.";
+      if (D.goal === "lose" && kg >= D.kg) return "For fat loss, your goal should be below today's weight."; if (D.goal === "gain" && kg <= D.kg) return "To build muscle, your goal should be above today's weight."; D.goalKg = kg; } else D.goalKg = ""; }
+  if (s === "health") D.health = readHealth();
+  return "";
+}
+function obFinish(){
+  const P = obProfile();
+  if (state.demo){ state = freshState(P); } else state.profile = {...state.profile, ...P};
+  if (!P.goalKg) delete state.profile.goalKg; if (!P.health) delete state.profile.health;
+  logWeight(ob.d.kg); state.focus = ob.d.focus.slice(0, 3); state.privacyOk = 1;
+  ob = null; obForce = false; pendingAck = false; tab = "home"; save();
+  render(); toast("You're all set. Your plan is ready.");
+}
+/* ---------- getting-started checklist: ticks itself off from real use ---------- */
+function startCard(){
+  if (viewing || state.demo || state.gsHide || isTrainer()) return "";
+  const any = o => Object.values(o || {}).some(v => Array.isArray(v) ? v.length : v);
+  const items = [["Set up your plan", true, ""], ["Log your first meal", any(state.days), "gs-food"], ["Add your measurements", state.scans.length > 0, "gs-scan"], ["Pick areas to work on", state.focus.length > 0, "gs-plan"], ["Finish your first workout", any(state.done), "gs-plan"]];
+  const n = items.filter(x => x[1]).length; if (n === items.length) return "";
+  return `<section class="card gs" data-gs><div class="row between"><div><h2>Getting started</h2><p class="sub">${n} of ${items.length} done</p></div><button class="linkbtn" data-act="gs-hide" style="color:var(--muted)">Hide</button></div>
+    <div class="bar" style="height:6px"><i style="width:${n/items.length*100}%"></i></div>
+    ${items.map(([t, ok, a]) => `<button class="gsrow${ok ? " ok" : ""}" ${ok ? "disabled" : `data-act="${a}"`}><span class="tick" aria-hidden="true">${ok ? "✓" : ""}</span><span>${t}</span>${ok ? "" : `<span aria-hidden="true">›</span>`}</button>`).join("")}</section>`;
+}
+/* ---------- tours: short, invited, always skippable, replay from the ? button ---------- */
+const TOURS = {
+  home:[[".hero","Your day at a glance","Calories left today, worked out from your own target. Log your next meal right from here."],["[data-gs]","Getting started","Five quick wins. Each one ticks itself off as you use the app."],["nav.tabs","Everything else","Food, Body, Plan and Check live down here. Tap ? at the top any time to see these tips again."]],
+  today:[[".ring","Calories and macros","The ring fills as you log. Protein, carbs and fat sit beside it."],["button.add","Add to a meal","Search thousands of foods, scan a barcode, or take a photo and say how many grams."],[".daynav","Other days","Go back to fill in a day you missed."],["[data-act=water][data-d='1']","Water","Tap + for each glass."]],
+  scan:[[".figwrap","Drawn from your numbers","Your figure follows your own measurements. The dashed line is an average build for your height."],[".seg[aria-label=View]","Front and back","Switch sides to reach your back, glutes and hamstrings."],["g[data-act=part]","Tap any part","See its measurement, how it changed and the exercises that train it."],["[data-act=newscan]","Add a scan","Use a tape measure, a gym scanner printout, or photos that never leave your phone."]],
+  focus:[[".week","Your week","Six short sessions, built from the areas you picked and your equipment."],["[data-act=wk-start]","Guided workout","Tick each move as you go, with a rest timer between sets."],[".lib","Exercise library","Hundreds of exercises you can filter by body part and level."]],
+  check:[["[data-act=chk-scan]","Scan a product","Point your camera at the barcode."],["#chk-code","Or type it","Enter the number under the barcode. We flag sugar, salt, fat and anything that clashes with your allergies or conditions."]],
+  reports:[[".seg[aria-label=Period]","Week or month","Switch between a weekly and a monthly view."],["[data-act=rep-copy]","Share it","Copy the summary, or save it as an image to send your trainer."]],
+  clients:[[".idbox","How members find you","Members type this email to share their profile with you."],[".client","Your clients","Tap a client to see their food, workouts and scans, live and read-only."]],
+  texs:[["[data-act=tex-new]","Write an exercise","Add the moves you teach, with steps, cues and safety notes. Your clients see them tagged with your first name."]]
+};
+let tourS = null;
+const tourSteps = t => (TOURS[t] || []).filter(([sel]) => { const el = document.querySelector("#view " + sel) || document.querySelector(sel); return el && el.getClientRects().length; });
+function tourInvite(){
+  if (viewing || state.demo || state.toursOff || (state.tours || {})[tab] || !TOURS[tab] || tourS) return "";
+  const nm = {home:"Home", today:"Food", scan:"Body", focus:"Plan", check:"Check", reports:"Reports", clients:"Clients", texs:"Exercises"}[tab];
+  return `<div class="invite"><span>New to ${nm}? Take a 20-second tour.</span><div class="row"><button class="linkbtn" data-act="tour-skip" style="color:var(--muted)">Skip</button><button class="pillbtn" data-act="tour">Show me</button></div></div>`;
+}
+function tourStart(){ const st = tourSteps(tab); if (!st.length){ toast("No tips for this screen yet."); return; } tourS = {t:tab, i:0, st}; (state.tours ||= {})[tab] = 1; save(); render(); tourShow(); }
+function tourEnd(){ tourS = null; const o = $("#tour"); if (o) o.remove(); }
+function tourShow(){
+  if (!tourS) return; const [sel, title, text] = tourS.st[tourS.i], el = document.querySelector("#view " + sel) || document.querySelector(sel); if (!el) return tourNext(1);
+  if (el.scrollIntoView) el.scrollIntoView({block:"center", behavior:"instant"});
+  let o = $("#tour"); if (!o){ o = document.createElement("div"); o.id = "tour"; $("#app").appendChild(o); }
+  const A = $("#app").getBoundingClientRect(), R = el.getBoundingClientRect(), pad = 6, top = R.top - A.top - pad, left = Math.max(4, R.left - A.left - pad), w = Math.min(A.width - 8 - left, R.width + pad*2), h = Math.min(R.height + pad*2, A.height*0.6);
+  const below = top + h + 190 < A.height, n = tourS.st.length;
+  o.innerHTML = `<div class="tour-hl" style="top:${top}px;left:${left}px;width:${w}px;height:${h}px"></div>
+    <div class="tour-tip" role="dialog" aria-labelledby="tour-t" style="${below ? `top:${top + h + 10}px` : `bottom:${A.height - top + 10}px`}">
+      <div class="row between"><b id="tour-t">${esc(title)}</b><span class="sub">${tourS.i + 1} of ${n}</span></div><p>${esc(text)}</p>
+      <div class="row between"><button class="linkbtn" data-act="tour-end" style="color:var(--muted);font-size:13px">Skip tour</button><div class="row">${tourS.i ? `<button class="pillbtn alt" data-act="tour-prev">Back</button>` : ""}<button class="pillbtn" data-act="tour-next">${tourS.i === n - 1 ? "Done" : "Next"}</button></div></div></div>`;
+  const b = o.querySelector("[data-act=tour-next]"); if (b) b.focus();
+}
+function tourNext(d){ if (!tourS) return; tourS.i += d; if (tourS.i < 0) tourS.i = 0; if (tourS.i >= tourS.st.length) return tourEnd(); tourShow(); }
+/* ---------- toasts with undo ---------- */
+let toastT = null;
+function toast(msg, undo){
+  let t = $("#toast"); if (!t){ t = document.createElement("div"); t.id = "toast"; t.setAttribute("role", "status"); $("#app").appendChild(t); }
+  t.innerHTML = `<span>${esc(msg)}</span>${undo ? `<button class="linkbtn" id="toast-undo">Undo</button>` : ""}`; t.classList.add("on");
+  if (undo) $("#toast-undo").onclick = () => { undo(); t.classList.remove("on"); };
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("on"), undo ? 6000 : 3500);
+}
+const paceText = () => { const p = state.profile.pace; if (p > 0) return `to lose about ${imp() ? {0.25:"½ lb",0.5:"1 lb",0.75:"1½ lb"}[p] || showWt(p) + " lb" : p + " kg"} a week`; if (p < 0) return "to build muscle slowly"; return "to maintain your weight"; };
 /* ---------- reports ---------- */
 let repDays = 7, repBody = true, dlFn = null;
 function buildReport(n){
@@ -1862,12 +2068,17 @@ function render(){
   $("#app").classList.toggle("trainer", tr); $("#app").classList.toggle("ro", !!viewing);
   $("#app").classList.toggle("cloudapp", CLOUD);
   if (tr){ if (tab !== "clients" && tab !== "texs") tab = "clients"; } else if (tab === "clients" || tab === "texs") tab = "home";
+  $("#app").classList.toggle("loading", acctLoading);
+  if (acctLoading){ $("#app").classList.remove("onboard"); v.innerHTML = `<div class="skel" style="height:34px;width:60%"></div><div class="skel" style="height:150px"></div><div class="tiles"><div class="skel" style="height:118px"></div><div class="skel" style="height:118px"></div></div><p class="sub" style="text-align:center">Loading your account…</p>`; return; }
+  const onb = needsSetup(); $("#app").classList.toggle("onboard", onb);
+  if (onb){ tourEnd(); v.innerHTML = viewOnboard(); v.scrollTop = 0; return; }
   $("#btn-profile").textContent = !state.demo && state.profile.name ? state.profile.name : "Profile";
   v.innerHTML = ({texs:viewTexs, home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
-  v.scrollTop = keep;
+  const inv = tourInvite(); if (inv) v.insertAdjacentHTML("afterbegin", inv);
+  v.scrollTop = keep; if (tourS && tourS.t === tab) requestAnimationFrame(tourShow); else if (tourS) tourEnd();
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
-function go(t){ tab = TABS.includes(t) ? t : "home"; if (window.PixoraUsage) PixoraUsage.track("tab_" + tab); $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
+function go(t){ if (tourS) tourEnd(); tab = TABS.includes(t) ? t : "home"; if (window.PixoraUsage) PixoraUsage.track("tab_" + tab); $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#panel").innerHTML = html; $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
@@ -1886,7 +2097,7 @@ function profileSheet(){
     <div class="grid2">${sel("p-sex","Sex (for the formulas)",[["m","Male"],["f","Female"]],p.sex)}${fld("p-age","Age",p.age,'step="1" min="18" max="95" required')}</div>
     <div class="grid2">${fld("p-h","Height ("+lenU()+")",p.height ? showLen(p.height) : "","required")}${fld("p-w","Weight ("+wtU()+")",state.demo ? "" : showWt(curKg()),"required")}</div>
     ${sel("p-act","Activity outside workouts",[[1.2,"Mostly sitting"],[1.375,"Lightly active"],[1.55,"On my feet a lot"],[1.725,"Physical job"]],p.activity)}
-    ${sel("p-pace","Fat-loss pace",[[0,"Maintain"],[0.25,"Gentle, 0.25 kg a week"],[0.5,"Steady, 0.5 kg a week"],[0.75,"Fast, 0.75 kg a week"]],p.pace)}
+    ${sel("p-pace","Goal",[[0.25,"Lose, gently (0.25 kg a week)"],[0.5,"Lose, steady (0.5 kg a week)"],[0.75,"Lose, fast (0.75 kg a week)"],[0,"Maintain and tone"],[-0.25,"Build muscle (lean gain)"]],p.pace)}
     ${fld("p-goal","Goal weight ("+wtU()+", optional)",p.goalKg ? showWt(p.goalKg) : "")}
     ${sel("p-bmi","BMI scale",[["standard","Standard (WHO, Health Canada)"],["asian","Asian populations (WHO action points)"]],p.bmiScale)}
     ${healthFields(p.health)}
@@ -1895,7 +2106,7 @@ function profileSheet(){
     <p class="sub">Your profile, scans and food log are private to you. This app is for adults and gives general fitness guidance, not medical advice. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13.5px">Privacy and your data</button></p>
     <details><summary style="cursor:pointer;font-weight:600">Have an import code?</summary><label class="f" style="margin-top:8px">Paste it here<textarea id="imp-text" rows="3" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink);width:100%" placeholder="CONTOUR1:…"></textarea></label><button type="button" class="btn alt" data-act="import" style="margin-top:8px">Import profile and scan</button><div class="err" id="imp-err"></div></details>
     <details class="links"><summary style="cursor:pointer;font-weight:600">Where the data comes from</summary><p class="sub">Exercises: <a href="https://github.com/yuhonas/free-exercise-db">free-exercise-db</a>, public domain. Foods: <a href="https://fdc.nal.usda.gov/">USDA FoodData Central, SR Legacy</a>, public domain, plus a short list of common dishes with approximate values and foods added by people using this app. BMI and waist lines: <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/healthy-weights/canadian-guidelines-body-weight-classification-adults/quick-reference-tool-professionals.html">Health Canada body weight classification</a> and the <a href="https://pubmed.ncbi.nlm.nih.gov/14726171/">WHO expert consultation on Asian populations</a>. Body fat: US Navy circumference method.</p></details>
-  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${state.demo ? "" : `<div class="owner"><div><h2>Your data</h2><p class="sub">Download a copy of everything Contour keeps about you.</p></div><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export all (JSON)</button><button type="button" class="btn alt" data-act="export" data-v="csv">Food log (CSV)</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div>${CLOUD && cuser ? `<button type="button" class="linkbtn" data-act="del-open" style="color:var(--high);font-size:13.5px;align-self:flex-start">Delete my account</button>` : ""}</div>`}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
+  </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${state.demo ? "" : `<div class="owner"><div><h2>Help and setup</h2><p class="sub">Walk through the setup questions again, or bring back the screen tips.</p></div><div class="grid2"><button type="button" class="btn alt" data-act="ob-redo">Redo setup</button><button type="button" class="btn alt" data-act="tips-reset">${state.toursOff ? "Turn tips on" : "Show tips again"}</button></div>${state.toursOff ? "" : `<button type="button" class="linkbtn" data-act="tips-off" style="color:var(--muted);font-size:13px;align-self:flex-start">Turn off screen tips</button>`}</div><div class="owner"><div><h2>Your data</h2><p class="sub">Download a copy of everything Contour keeps about you.</p></div><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export all (JSON)</button><button type="button" class="btn alt" data-act="export" data-v="csv">Food log (CSV)</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div>${CLOUD && cuser ? `<button type="button" class="linkbtn" data-act="del-open" style="color:var(--high);font-size:13.5px;align-self:flex-start">Delete my Contour data</button>` : ""}</div>`}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 function scanSheet(){
   const l = state.demo ? null : state.scans[state.scans.length-1], v = k => l && l[k] != null ? showLen(l[k]) : "";
@@ -1982,7 +2193,7 @@ function foodSheet(meal){
         <div class="err" id="m-err"></div>
         <button class="btn alt">Save and add to ${meal.toLowerCase()}</button></form></details>`);
 }
-function addEntry(o){ if (viewing) return false; if (state.demo) return needProfile(); (state.days[vd()] ||= []).push({id:uid(), meal:sheetMeal, qty:1, serv:"", ...o}); save(); }
+function addEntry(o){ if (viewing) return false; if (state.demo) return needProfile(); const d = vd(), e = {id:uid(), meal:sheetMeal, qty:1, serv:"", ...o}; (state.days[d] ||= []).push(e); save(); toast(`Added ${e.name} to ${e.meal.toLowerCase()}`, () => { const L = state.days[d] || [], k = L.indexOf(e); if (k >= 0){ L.splice(k, 1); save(); render(); } }); }
 function needProfile(){ closeSheet(); profileSheet(); $("#p-err").textContent = "Set up your profile first so your entries are saved."; return false; }
 const AI_COPY = {not_granted:"Claude access was not allowed, so estimates are off.", rate_limited:"Too many requests right now. Try again in a minute.", refused:"That could not be estimated. Try describing the food differently.", invalid_json:"The estimate came back unreadable. Try again.", image_rejected:"That image could not be read. Try a JPEG or PNG.", session_expired:"Sign in to Claude again, then retry.", images_unavailable:"Photos are not available in this view. Describe the meal instead."};
 async function runAI(text, file){
@@ -2015,7 +2226,7 @@ const actions = {
   newscan(){ state.demo ? needProfile() : scanSheet(); },
   addfood(el){ foodSheet(el.dataset.meal); },
   pickfood(el){ const o = lastHits[+el.dataset.i]; if (!o) return; const f = o.a; if (addEntry({name:f[0], serv:f[1], kcal:f[2], p:f[3], c:f[4], f:f[5]}) === false) return; el.textContent = "Added"; render(); },
-  qty(el){ if (state.demo) return needProfile(); const list = state.days[vd()] || [], e = list.find(x => x.id === el.dataset.id); if (!e) return; e.qty = Math.round((e.qty + parseFloat(el.dataset.d))*2)/2; if (e.qty <= 0) list.splice(list.indexOf(e), 1); save(); render(); },
+  qty(el){ if (state.demo) return needProfile(); const list = state.days[vd()] || [], e = list.find(x => x.id === el.dataset.id); if (!e) return; e.qty = Math.round((e.qty + parseFloat(el.dataset.d))*2)/2; if (e.qty <= 0){ const at = list.indexOf(e); list.splice(at, 1); e.qty = 0.5; const d = vd(); toast(`Removed ${e.name}`, () => { (state.days[d] ||= []).splice(at, 0, e); save(); render(); }); } save(); render(); },
   water(el){ if (state.demo) return needProfile(); const t = vd(), v = Math.max(0, Math.min(30, (state.water[t] || 0) + parseInt(el.dataset.d, 10))); if (v) state.water[t] = v; else delete state.water[t]; save(); render(); },
   "rep-days"(el){ repDays = +el.dataset.v === 30 ? 30 : 7; render(); },
   "rep-body"(el){ repBody = el.checked; },
@@ -2054,6 +2265,24 @@ const actions = {
   "meal-scan"(){ scanProduct = null; openScanner("meal"); },
   "sp-add"(){ if (!scanProduct || scanProduct.err) return; if (addProduct(scanProduct, num("sp-g")) === false) return; scanProduct = null; closeSheet(); render(); },
   nav(el){ go(el.dataset.v); },
+  "ob-next"(){ if (!ob) obInit(); const e = obCollect(); ob.err = e; if (e){ render(); return; } const st = obSteps(); if (ob.i >= st.length - 1) return obFinish(); ob.i++; ob.err = ""; render(); },
+  "ob-back"(){ if (!ob) return; ob.err = ""; if (obForce && ob.i <= 1){ obForce = false; ob = null; } else if (ob.i > 0) ob.i--; render(); },
+  "ob-skip"(){ if (!ob) return; const s2 = obSteps()[ob.i]; if (s2 === "health") ob.d.health = undefined; ob.i++; ob.err = ""; render(); },
+  "ob-pick"(el){ obStash(); const D = ob.d, k = el.dataset.k, v = el.dataset.v; D[k] = ["activity","pace"].includes(k) ? +v : v; ob.err = "";
+    if (k === "goal" && v === "gain") D.pace = -0.25; if (k === "goal" && v === "lose" && !(D.pace > 0)) D.pace = 0.5;
+    render(); if (["goal","activity"].includes(k)) setTimeout(() => actions["ob-next"](), 180); },
+  "ob-units"(el){ const r = obReadBody(); if (r.h) ob.d.height = r.h; if (r.kg) ob.d.kg = r.kg; ob.d.units = el.dataset.v === "imperial" ? "imperial" : "metric"; state.profile.units = ob.d.units; render(); },
+  "ob-side"(el){ obStash(); ob.side = el.dataset.v === "b" ? "b" : "f"; render(); },
+  "ob-part"(el){ obStash(); const k = el.dataset.region, f = ob.d.focus, i = f.indexOf(k); if (i >= 0) f.splice(i, 1); else { if (f.length >= 3) f.shift(); f.push(k); } render(); },
+  async "ob-trainer"(){ const n = prompt("Your name, as your clients will see it"); if (n && n.trim()) await becomeTrainer(n.trim()); },
+  "ob-redo"(){ closeSheet(); obInit(); obForce = true; ob.i = 1; render(); },
+  "tips-reset"(){ state.tours = {}; state.toursOff = 0; save(); closeSheet(); render(); toast("Tips are back. Look for the blue bar at the top of each screen."); },
+  "tips-off"(){ state.toursOff = 1; save(); closeSheet(); render(); toast("Screen tips are off. The ? button still shows them."); },
+  tour(){ tourStart(); },
+  "tour-skip"(){ (state.tours ||= {})[tab] = 1; save(); render(); },
+  "tour-next"(){ tourNext(1); }, "tour-prev"(){ tourNext(-1); }, "tour-end"(){ tourEnd(); },
+  "gs-hide"(){ state.gsHide = 1; save(); render(); },
+  "gs-food"(){ go("today"); }, "gs-plan"(){ go("focus"); }, "gs-scan"(){ go("scan"); scanSheet(); },
   "body-side"(el){ bodySide = el.dataset.v === "b" ? "b" : "f"; render(); },
   part(el){ partSheet(el.dataset.region); },
   "part-focus"(el){ const k = el.dataset.region, i = state.focus.indexOf(k);
@@ -2191,7 +2420,7 @@ const forms = {
     if (h < 120 || h > 230) return err.textContent = `Height looks off. Enter it in ${lenU()}.`;
     if (kg < 30 || kg > 300) return err.textContent = `Weight looks off. Enter it in ${wtU()}.`;
     const p = {name:($("#p-name").value || "").trim().slice(0,30), sex:$("#p-sex").value, age:Math.round(age), height:r1(h), activity:+$("#p-act").value, pace:+$("#p-pace").value, units:state.profile.units, equip:state.profile.equip, bmiScale:$("#p-bmi").value, goalKg:(g => g != null && toKg(g) >= 30 && toKg(g) <= 300 ? r1(toKg(g)) : null)(num("p-goal"))};
-    p.health = readHealth();
+    p.health = readHealth(); p.setup = 1; p.goal = p.pace > 0 ? "lose" : p.pace < 0 ? "gain" : (state.profile.goal === "health" ? "health" : "tone");
     if (state.demo){ state = freshState(p); state.weights.push({d:today(), kg:r1(kg)}); if (pendingAck) state.privacyOk = 1; }
     else { state.profile = p; logWeight(kg); }
     save(); closeSheet(); render();
@@ -2235,16 +2464,20 @@ document.addEventListener("click", e => {
   if (window.PixoraUsage) PixoraUsage.track("act_" + a.dataset.act.replace(/[^a-z0-9]/gi, "_").toLowerCase().slice(0, 36));
   actions[a.dataset.act](a, e);
 });
-const RO_OK = new Set(["part","body-side","nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
+const RO_OK = new Set(["tour","tour-next","tour-prev","tour-end","tour-skip","part","body-side","nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
 document.addEventListener("keydown", e => {
+  if (tourS && e.key === "Escape") return tourEnd();
   if (e.key === "Escape" && $("#sheet").classList.contains("open")) return closeSheet();
+  if (e.key === "Enter" && $("#app").classList.contains("onboard") && e.target.matches && e.target.matches(".ob input")){ e.preventDefault(); return actions["ob-next"](); }
   if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]") && (!viewing || e.target.dataset.act === "part")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (/^ob-(h|ft|in|w)$/.test(e.target.id || "")){ const b = $("#ob-bmi"); if (b) b.textContent = obBmiLine(); return; }
   if (e.target.dataset && e.target.dataset.aiG != null){ const i = +e.target.dataset.aiG, x = aiItems[i]; if (!x) return; const v = parseFloat(e.target.value); x.g = isFinite(v) && v > 0 ? Math.min(v, 3000) : 0;
     $("#ai-k-"+i).textContent = `${Math.round(aiK(x))} kcal · P ${Math.round(x.p100*x.g/100)} C ${Math.round(x.c100*x.g/100)} F ${Math.round(x.f100*x.g/100)}`; $("#ai-addbtn").textContent = aiTotal(); return; } if (e.target.id === "food-q") $("#food-list").innerHTML = foodList(e.target.value); });
 document.addEventListener("change", e => { if (e.target.id === "cl-file" && e.target.files && e.target.files[0]){ e.target.files[0].text().then(importPkgText).then(m => { clientMsg = m || "Added."; render(); }); return; } if (e.target.dataset && e.target.dataset.ps && e.target.files && e.target.files[0]){ const kg0 = num("ps-kg0"); psFiles[e.target.dataset.ps] = e.target.files[0]; psMsg = ""; scanSheet(); if (kg0 != null && $("#ps-kg0")) $("#ps-kg0").value = kg0; return; } if (e.target.id === "ms-photo" && e.target.files && e.target.files[0]) readScanPhoto(e.target.files[0]); if (e.target.id === "ai-photo" && e.target.files && e.target.files[0]) runAI(($("#ai-text").value || "").trim(), e.target.files[0]); });
+window.addEventListener("resize", () => { if (tourS) tourShow(); });
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (TABS.includes(h) && h !== tab) go(h); });
 
 /* ---------- boot ---------- */
