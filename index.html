@@ -194,8 +194,28 @@ details.day summary small{color:var(--muted)}
 .water i{width:20px;height:26px;border-radius:5px 5px 9px 9px;background:var(--sunk);display:block}
 .water i.on{background:var(--scan)}
 #app:not(.standalone) nav.tabs [data-tab="check"]{display:none}
-#app.standalone nav.tabs{grid-template-columns:repeat(6,1fr)}
-#app.standalone nav.tabs button{font-size:10.5px}
+nav.tabs [data-tab="progress"]{display:none}
+#app.standalone nav.tabs [data-tab="reports"]{display:none}
+.backrow{border:0;background:none;color:var(--scan);font-weight:600;font-size:14px;padding:0;align-self:flex-start}
+.hero{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:18px;display:flex;flex-direction:column;gap:12px}
+.hero .num{font-size:40px;line-height:1}
+.hero small{color:color-mix(in srgb,var(--bg) 70%,transparent);font-size:13px}
+.hero .bar{background:color-mix(in srgb,var(--bg) 18%,transparent)}
+.hero .bar i{background:var(--accent)}
+.hero .acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.hero .acts .btn.alt{background:color-mix(in srgb,var(--bg) 14%,transparent);color:var(--bg)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tile{background:var(--surface);border:0;border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:4px;text-align:left;min-height:118px}
+.tile label{font-size:12.5px;color:var(--muted);cursor:inherit}
+.tile .num{font-size:26px;line-height:1.1}
+.tile .num small{font-size:13px;font-weight:700;color:var(--muted);margin-left:2px}
+.tile .sub{margin-top:auto}
+.tile .mini{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-top:auto}
+.tile .mini button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);background:none;font-size:18px;line-height:1}
+.ro .act{display:none}
+.notice h3{font-family:var(--display);font-size:15px;margin:6px 0 0}
+.notice p,.notice li{font-size:14px;color:var(--ink);margin:0}
+.notice ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
 .ck{position:relative;cursor:pointer}
 .ck input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
 .ck:has(input:checked){background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
@@ -228,9 +248,10 @@ details.day summary small{color:var(--muted)}
   </header>
   <main id="view"></main>
   <nav class="tabs" aria-label="Sections">
-    <button data-tab="today" id="tab-today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Today</button>
-    <button data-tab="scan" id="tab-scan"><svg viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/></svg>Scan</button>
-    <button data-tab="focus" id="tab-focus"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M7 9.5h10M12 9.5V15M12 15l-3 5.5M12 15l3 5.5"/></svg>Focus</button>
+    <button data-tab="home" id="tab-home"><svg viewBox="0 0 24 24"><path d="M4 11.500 12 5l8 6.500V19a1 1 0 0 1-1 1h-4.500v-5h-5v5H5a1 1 0 0 1-1-1z"/></svg>Home</button>
+    <button data-tab="today" id="tab-today"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>Food</button>
+    <button data-tab="scan" id="tab-scan"><svg viewBox="0 0 24 24"><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16M4 12h16"/></svg>Body</button>
+    <button data-tab="focus" id="tab-focus"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2.2"/><path d="M7 9.5h10M12 9.5V15M12 15l-3 5.5M12 15l3 5.5"/></svg>Plan</button>
     <button data-tab="progress" id="tab-progress"><svg viewBox="0 0 24 24"><path d="M4 19h16M5 15l4.5-4.5 3.5 3L19 7"/><path d="M15 7h4v4"/></svg>Progress</button>
     <button data-tab="reports" id="tab-reports"><svg viewBox="0 0 24 24"><path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M14 3.5v4h4M10 12h5M10 16h5"/></svg>Reports</button>
     <button data-tab="check" id="tab-check"><svg viewBox="0 0 24 24"><path d="M4 7V5.500A1.500 1.500 0 0 1 5.500 4H7M17 4h1.500A1.500 1.500 0 0 1 20 5.500V7M20 17v1.500a1.500 1.500 0 0 1-1.500 1.500H17M7 20H5.500A1.500 1.500 0 0 1 4 18.500V17M8 8v8M11 8v8M14 8v8M16.500 8v8"/></svg>Check</button>
@@ -610,7 +631,7 @@ const myShape = () => state.demo && !state.scans.length ? null : shapeOf(state.s
 
 /* ---------- views ---------- */
 let tab = "today", scanning = false;
-const TABS = ["today","scan","focus","progress","reports","check","clients"];
+const TABS = ["home","today","scan","focus","progress","reports","check","clients"];
 function banner(){
   if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
   return state.demo ? `<div class="banner"><span>These are example numbers so you can see how it works.</span><button data-act="profile">Use my numbers</button></div>` : "";
@@ -618,6 +639,52 @@ function banner(){
 function dayTotals(d){ const t = {kcal:0,p:0,c:0,f:0}; for (const e of (state.days[d]||[])){ t.kcal += e.kcal*e.qty; t.p += e.p*e.qty; t.c += e.c*e.qty; t.f += e.f*e.qty; } return t; }
 
 const WATER_GOAL = 8;
+function mealNow(){ const h = new Date().getHours(); return h < 11 ? "Breakfast" : h < 16 ? "Lunch" : h < 21 ? "Dinner" : "Snacks"; }
+function noticeHtml(){
+  const cloud = CLOUD, claude = !STANDALONE;
+  return `<div class="notice" style="display:flex;flex-direction:column;gap:12px">
+    <p>A plain summary of what Contour keeps about you, where it goes, and who can see it.</p>
+    <h3>What is saved</h3><p>Your name, age, sex, height, weight, food log, water, workouts, body scans and measurements, and any allergies or health conditions you choose to add.</p>
+    <h3>Where it is kept</h3><p>${cloud ? "On your phone, and in Pixora's cloud database, run on Google Firebase with the data stored in Toronto. That is what lets you log in on another device and keeps working offline." : claude ? "In this browser and in your Claude account, when this app can reach it." : "In this browser on this device only."}</p>
+    <h3>Who can see it</h3><ul><li>You.</li><li>A trainer, only if you share your profile with them. They can look but not change anything. Your health details are hidden from them unless you tick the box in Profile.</li>${cloud ? `<li>Pixora, who runs the app, can access the database to keep it working.</li>` : ""}<li>Foods you add with Share ticked are visible to everyone using Contour, without your name.</li></ul>
+    <h3>Photos</h3><ul>${claude ? `<li>Food photos, meal descriptions and body scan photos are sent to Claude to be read. They are not saved by this app.</li>` : `<li>Food photos and meal descriptions are sent to Google Gemini to recognise the food. On Google's free tier, people at Google may review them to improve its services. Keep faces and personal details out of food photos.</li><li>Body scan photos are measured on your phone and are never uploaded or saved.</li>`}</ul>
+    <h3>Product checks</h3><p>Only the barcode number is sent to Open Food Facts, a free public food database. Its data comes from volunteers and can be missing or wrong. If you have an allergy, always read the pack.</p>
+    <h3>Not medical advice</h3><p>Contour is for adults and gives general fitness guidance. Calorie targets, body fat and product verdicts are estimates. Talk to a doctor about any health condition before changing your diet or exercise.</p>
+    <h3>Removing your data</h3><p>Email <b>pixora3dstudios@gmail.com</b> from the address you signed up with and your account and data will be deleted.</p>
+    <p class="sub">Last updated November 20, 2026.</p></div>`;
+}
+function privacySheet(){ openSheet(`${head("Your data in Contour")}${noticeHtml()}<button class="btn" data-act="privacy-ok">Got it</button>`); }
+function viewHome(){
+  const nm = (state.profile.name || pendingName || "").split(" ")[0], hr = new Date().getHours(), hi = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+  const dateLine = new Date().toLocaleDateString(undefined, {weekday:"long", month:"long", day:"numeric"});
+  if (CLOUD && state.demo) return `<div><h1>${hi}${nm ? ", " + esc(nm) : ""}</h1><p class="sub">${dateLine}</p></div>
+    <section class="hero"><h2 style="color:inherit">Let's set you up</h2><small>Two minutes: your age, height and weight give you a daily calorie target, and everything else builds from there.</small><button class="btn" data-act="profile">Set up my profile</button></section>
+    <section class="card"><h2>What's in Contour</h2><div class="reads">
+      <div class="read"><span>Food</span><span class="v" style="font-weight:500">Log meals by search, barcode or photo</span></div>
+      <div class="read"><span>Body</span><span class="v" style="font-weight:500">Scans, measurements and body fat</span></div>
+      <div class="read"><span>Plan</span><span class="v" style="font-weight:500">Pick areas to work on, get a weekly plan</span></div>
+      <div class="read"><span>Check</span><span class="v" style="font-weight:500">Scan a product to see if it suits you</span></div></div></section>`;
+  const tg = targets(state.profile, curKg()), t = dayTotals(today()), left = Math.round(tg.kcal - t.kcal), pct = Math.min(100, t.kcal/tg.kcal*100), m = mealNow();
+  const wd = weekDates(), ti = wd.indexOf(today()), day = buildWeek()[ti], done = !!state.done[today()];
+  const W = state.weights, wl = W[W.length-1], wOld = [...W].reverse().find(x => x.d <= daysAgo(7)), dW = wl && wOld ? wl.kg - wOld.kg : null;
+  const sc = state.scans[state.scans.length-1], wn = state.water[today()] || 0, sk = streak(), R = buildReport(7);
+  const sign = v => (v > 0 ? "+" : "−") + Math.abs(v);
+  return `${banner()}
+  ${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data now syncs to Pixora's cloud, and food photos go to Google Gemini. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
+  <div><h1>${viewing ? esc(viewing.name) + "'s day" : hi + (nm ? ", " + esc(nm) : "")}</h1><p class="sub">${dateLine}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
+  <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${tg.kcal.toLocaleString()}</small></div>
+    <div class="bar" style="height:8px"><i style="width:${pct}%;${left < 0 ? "background:var(--watch)" : ""}"></i></div>
+    <small>Protein ${Math.round(t.p)} of ${tg.p} g · Carbs ${Math.round(t.c)} g · Fat ${Math.round(t.f)} g</small>
+    <div class="acts act"><button class="btn" data-act="addfood" data-meal="${m}">Log ${m.toLowerCase()}</button>${STANDALONE ? `<button class="btn alt" data-act="home-scan" data-meal="${m}">Scan a barcode</button>` : `<button class="btn alt" data-act="nav" data-v="today">See today's food</button>`}</div></section>
+  <div class="tiles">
+    <div class="tile"><label>Water</label><span class="num">${wn}<small>/ ${WATER_GOAL}</small></span><div class="mini"><span class="sub">glasses</span><span class="act"><button data-act="water" data-d="1" aria-label="Add a glass of water">+</button></span></div></div>
+    <button class="tile" data-act="nav" data-v="progress"><label>Weight</label><span class="num">${wl ? showWt(wl.kg) : "–"}<small>${wtU()}</small></span><span class="sub">${dW == null ? "Log it to see a trend" : Math.abs(dW) < 0.05 ? "Same as last week" : sign(showWt(Math.abs(dW))*Math.sign(dW)) + " " + wtU() + " this week"}</span></button>
+    <button class="tile" data-act="nav" data-v="focus"><label>Today's workout</label><span class="num" style="font-size:19px">${esc(day.t)}</span><span class="sub">${done ? "Done ✓" : esc(day.s)}</span></button>
+    <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
+  </div>
+  <section class="card"><div class="row between"><h2>This week</h2><button class="backrow" data-act="nav" data-v="reports">Full report ›</button></div>
+    <ul class="hl">${R.hl.slice(0, 3).map(([st2, tx]) => `<li class="st-${st2}"><span>${esc(tx)}</span></li>`).join("")}</ul></section>`;
+}
 function streak(){ let n = 0; for (let i = 0; i < 400; i++){ const has = (state.days[daysAgo(i)] || []).length > 0; if (has) n++; else if (i > 0) break; } return n; }
 function healthCard(){
   const hh = viewing && state.profile.health; if (!hh || !hh.share) return "";
@@ -942,6 +1009,7 @@ function trainerSheet(){
 }
 /* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
 const APP = "apps/contour";
+let pendingAck = false;
 let fdb = null, cuser = null, cloudReady = false, pendingRole = "member", pushTimer = null, pushing = false, pushDirty = false, monthSig = {}, mainUnsub = null, grantsUnsub = null, lastDir = "";
 const canShareFood = () => CLOUD ? !!(cuser && fdb) : !!(cloudDb && groupKey);
 let foodsUnsub = null;
@@ -992,7 +1060,7 @@ async function cloudEnter(u){
     // Only a member's own tracking data is moved. A device that was set up as a trainer has no body data worth keeping.
     if (legacy && !legacy.demo && legacy.profile.role !== "trainer" && pendingRole !== "trainer"){ state = legacy; if (!state.profile.name && pendingName) state.profile.name = pendingName; delete state.share; delete state.trainer; if (pendingRole === "trainer") state.profile.role = "trainer"; else delete state.profile.role;
       try { localStorage.setItem(LOCAL_KEY + ":adopted", u.uid); } catch(e){} save(); }
-    else { pendingName = pendingName || u.displayName || ""; if (pendingRole === "trainer") await cloudBecomeTrainer(pendingName); else { render(); profileSheet(); } }
+    else { pendingName = pendingName || u.displayName || ""; if (pendingRole === "trainer") await cloudBecomeTrainer(pendingName); else { tab = "home"; render(); } }
   } else setSync("Offline. Connect once to load your account.");
   if (mainUnsub) mainUnsub();
   mainUnsub = fdb.doc(`${APP}/users/${u.uid}`).onSnapshot(snap => {
@@ -1043,7 +1111,8 @@ function cloudGate(){
       <label class="f">Your name<input id="a-name" type="text" maxlength="30" required autocomplete="name" style="font-size:16px"></label>` : ""}
       <label class="f">Email<input id="a-email" type="email" required autocomplete="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label>
       <label class="f">Password<input id="a-pw" type="password" required minlength="8" autocomplete="${up ? "new-password" : "current-password"}" style="font-size:16px">${up ? `<small>At least 8 characters.</small>` : ""}</label>
-      ${up ? `<label class="check"><input type="checkbox" id="a-age" required><span>I am 18 or older.</span></label>` : ""}
+      ${up ? `<div class="note" style="font-size:13px"><b>Heads-up.</b> Your profile, food log, measurements and any health details are saved on your phone and in Pixora's cloud database, so they sync across your devices. Food photos go to Google Gemini to be recognised. Body scan photos never leave your phone. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13px">Read the full heads-up</button></div>
+      <label class="check"><input type="checkbox" id="a-age" required><span>I am 18 or older and I have read the heads-up.</span></label>` : ""}
       <div class="err" id="a-err"></div><button class="btn" id="a-go">${up ? "Create account" : "Log in"}</button></form>
     ${up ? "" : `<button class="linkbtn" data-act="pw-reset" style="color:var(--scan);font-size:13.5px;align-self:flex-start">Forgot your password?</button>`}
     <p class="sub">The same account works across Pixora apps. After the first login, Contour keeps working without a connection and syncs when it is back.</p></section>`;
@@ -1057,7 +1126,7 @@ async function cloudAuthSubmit(){
   if (offline()) return err.textContent = AUTH_COPY["auth/network-request-failed"];
   btn.disabled = true; btn.textContent = "One moment…";
   try {
-    if (up){ pendingName = name; pendingRole = authRole; const c = await firebase.auth().createUserWithEmailAndPassword(email, pw); try { await c.user.updateProfile({displayName:name}); } catch(e){} }
+    if (up){ pendingName = name; pendingRole = authRole; pendingAck = true; const c = await firebase.auth().createUserWithEmailAndPassword(email, pw); try { await c.user.updateProfile({displayName:name}); } catch(e){} }
     else { pendingRole = "member"; await firebase.auth().signInWithEmailAndPassword(email, pw); }
   } catch(e){ const b = $("#a-go"), x = $("#a-err"); if (b){ b.disabled = false; b.textContent = up ? "Create account" : "Log in"; } if (x) x.textContent = AUTH_COPY[e && e.code] || "That did not work. Check your connection and try again."; }
 }
@@ -1093,7 +1162,7 @@ async function cloudOpenClient(cid){
   let snap = null; try { snap = await Promise.race([cloudLoad(cid), late(12000)]); } catch(e){}
   if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : `${c.name}'s profile could not be loaded. They may have stopped sharing, or not synced yet.`; return render(); }
   delete snap._sig; delete snap.share; delete snap.profile.role; snap.profile.units = state.profile.units; clientMsg = "";
-  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now()}; viewDate = null; tab = "today"; $("#view").scrollTop = 0; render();
+  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now()}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
 }
 function cloudShareBox(){
   if (state.demo || isTrainer() || !cuser) return "";
@@ -1376,7 +1445,7 @@ function reportText(R){
 function viewReports(){
   const R = buildReport(repDays), per = repDays === 7 ? "week" : "30 days", sign = v => (v > 0 ? "+" : "−") + Math.abs(v);
   const tile = (label, big, unit, sub) => `<div class="stat" style="background:var(--bg)"><label>${label}</label><span class="num">${big}<small>${unit}</small></span><span class="sub">${sub}</span></div>`;
-  return `${banner()}
+  return `${banner()}<button class="backrow" data-act="nav" data-v="home">‹ Home</button>
   <div><h1>Your last ${per}</h1><p class="sub">${shortD(R.from)} to ${shortD(R.to)} · built from what you logged</p></div>
   <section class="card"><div class="seg" role="group" aria-label="Period"><button data-act="rep-days" data-v="7" aria-pressed="${repDays===7}">Weekly</button><button data-act="rep-days" data-v="30" aria-pressed="${repDays===30}">Monthly</button></div>
     <div class="rgrid">
@@ -1419,7 +1488,7 @@ function viewProgress(){
   const bfp = state.scans.filter(s => s.bf != null).map(s => ({d:s.d, v:s.bf}));
   const f = state.scans[0], l = state.scans[state.scans.length-1];
   const rows = f && l && f !== l ? [["Waist","waist"],["Hips","hip"],["Chest","chest"],["Upper arm","arm"],["Thigh","thigh"],["Neck","neck"]].filter(([,k]) => f[k] != null && l[k] != null).map(([n,k]) => { const x = r1(imp() ? (l[k]-f[k])/2.54 : l[k]-f[k]); return `<div class="read"><span>${n}</span><span class="v">${x === 0 ? "0" : (x>0?"+":"−") + Math.abs(x)} ${lenU()}<span class="d">${showLen(f[k])} → ${showLen(l[k])}</span></span></div>`; }).join("") : "";
-  return `${banner()}
+  return `${banner()}<button class="backrow" data-act="nav" data-v="home">‹ Home</button>
   <div><h1>${dw != null ? `${dw <= 0 ? "Down" : "Up"} ${Math.abs(showWt(Math.abs(dw)))} ${wtU()} since ${shortD(w[0].d)}` : "Your progress"}</h1><p class="sub">${goalLine() || "Weigh in at the same time of day. Daily swings of a kilo are normal."}</p></div>
   <section class="card"><div class="row between"><h2>Weight</h2><span class="num" style="font-size:20px">${w.length ? showWt(w[w.length-1].kg) + " " + wtU() : "–"}</span></div>
     ${lineChart(w.map(x => ({d:x.d, v:x.kg})), "var(--accent)", wtU(), v => imp() ? v*2.20462 : v)}
@@ -1435,15 +1504,15 @@ function render(){
   $("#app").classList.toggle("gated", access !== "open");
   if (access !== "open"){ v.innerHTML = viewGate(); return; }
   const tr = isTrainer() && !viewing;
-  $("#app").classList.toggle("standalone", STANDALONE); if (!STANDALONE && tab === "check") tab = "today";
+  $("#app").classList.toggle("standalone", STANDALONE); if (!STANDALONE && tab === "check") tab = "home";
   $("#app").classList.toggle("trainer", tr); $("#app").classList.toggle("ro", !!viewing);
-  if (tr) tab = "clients"; else if (tab === "clients") tab = "today";
+  if (tr) tab = "clients"; else if (tab === "clients") tab = "home";
   $("#btn-profile").textContent = !state.demo && state.profile.name ? state.profile.name : "Profile";
-  v.innerHTML = ({today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
+  v.innerHTML = ({home:viewHome, today:viewToday, scan:viewScan, focus:viewFocus, progress:viewProgress, reports:viewReports, check:viewCheck, clients:viewClients})[tab]();
   v.scrollTop = keep;
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
-function go(t){ tab = TABS.includes(t) ? t : "today"; $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
+function go(t){ tab = TABS.includes(t) ? t : "home"; $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#panel").innerHTML = html; $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
@@ -1468,7 +1537,7 @@ function profileSheet(){
     ${healthFields(p.health)}
     <div class="err" id="p-err"></div>
     <button class="btn">${state.demo ? "Start tracking" : "Save profile"}</button>
-    <p class="sub">Your profile, scans and food log are private to you. This app is for adults and gives general fitness guidance, not medical advice.</p>
+    <p class="sub">Your profile, scans and food log are private to you. This app is for adults and gives general fitness guidance, not medical advice. <button type="button" class="linkbtn" data-act="privacy" style="color:var(--scan);font-size:13.5px">Privacy and your data</button></p>
     <details><summary style="cursor:pointer;font-weight:600">Have an import code?</summary><label class="f" style="margin-top:8px">Paste it here<textarea id="imp-text" rows="3" style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:14px;color:var(--ink);width:100%" placeholder="CONTOUR1:…"></textarea></label><button type="button" class="btn alt" data-act="import" style="margin-top:8px">Import profile and scan</button><div class="err" id="imp-err"></div></details>
     <details class="links"><summary style="cursor:pointer;font-weight:600">Where the data comes from</summary><p class="sub">Exercises: <a href="https://github.com/yuhonas/free-exercise-db">free-exercise-db</a>, public domain. Foods: <a href="https://fdc.nal.usda.gov/">USDA FoodData Central, SR Legacy</a>, public domain, plus a short list of common dishes with approximate values and foods added by people using this app. BMI and waist lines: <a href="https://www.canada.ca/en/health-canada/services/food-nutrition/healthy-eating/healthy-weights/canadian-guidelines-body-weight-classification-adults/quick-reference-tool-professionals.html">Health Canada body weight classification</a> and the <a href="https://pubmed.ncbi.nlm.nih.gov/14726171/">WHO expert consultation on Asian populations</a>. Body fat: US Navy circumference method.</p></details>
   </form>${state.demo && subtle ? `<button type="button" class="btn alt" data-act="be-trainer">I am a fitness trainer</button>` : ""}${shareBox()}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
@@ -1599,7 +1668,7 @@ const actions = {
   import(){ const e = applyImport($("#imp-text").value); if (e) return $("#imp-err").textContent = e; closeSheet(); tab = "scan"; render(); try { location.hash = "scan"; } catch(x){} },
   async "be-trainer"(){ const n = ($("#p-name").value || "").trim(); if (!n) return $("#p-err").textContent = "Enter your name first."; await becomeTrainer(n); },
   async "tr-copy"(el){ try { await navigator.clipboard.writeText(trainerId()); $("#tr-msg").textContent = "Copied. Send it to your client."; } catch(e){ $("#tr-msg").textContent = "Copying is blocked here. Press and hold the ID above to select it."; } },
-  "client-open"(el){ if (CLOUD) return cloudOpenClient(el.dataset.cid); const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "today"; $("#view").scrollTop = 0; render(); },
+  "client-open"(el){ if (CLOUD) return cloudOpenClient(el.dataset.cid); const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render(); },
   "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
   async "cl-paste"(){ clientMsg = await importPkgText($("#cl-text").value) || "Added."; render(); },
   "pw-reset"(){ cloudReset(); },
@@ -1620,6 +1689,10 @@ const actions = {
   "chk-add"(){ if (state.demo) return needProfile(); if (!chk) return; const sm = sheetMeal; sheetMeal = "Snacks"; const r = addProduct(chk, num("chk-g")); sheetMeal = sm; if (r !== false) $("#chk-add-msg").textContent = "Added to today under Snacks."; },
   "meal-scan"(){ scanProduct = null; openScanner("meal"); },
   "sp-add"(){ if (!scanProduct || scanProduct.err) return; if (addProduct(scanProduct, num("sp-g")) === false) return; scanProduct = null; closeSheet(); render(); },
+  nav(el){ go(el.dataset.v); },
+  privacy(){ privacySheet(); },
+  "privacy-ok"(){ if (!state.demo && !viewing){ state.privacyOk = 1; save(); } closeSheet(); render(); },
+  "home-scan"(el){ sheetMeal = el.dataset.meal || mealNow(); scanProduct = null; openScanner("meal"); },
   retry(){ access = "checking"; render(); initAccess(); },
   authtab(el){ authTab = el.dataset.v; render(); },
   authrole(el){ const n = $("#a-name") ? $("#a-name").value : "", c = $("#a-code") ? $("#a-code").value : ""; authRole = el.dataset.v; render(); if ($("#a-name")) $("#a-name").value = n; if ($("#a-code")) $("#a-code").value = c; },
@@ -1707,7 +1780,7 @@ const forms = {
     fails = 0; try { localStorage.setItem(ACCESS_KEY, b64(dk)); } catch(e){}
     if (inviteCode) clearInvite();
     groupKey = k; access = "open"; pendingName = name; render(); refreshCommunity();
-    if (state.demo){ if (up && authRole === "trainer") await becomeTrainer(name); else profileSheet(); }
+    if (state.demo){ if (up && authRole === "trainer") await becomeTrainer(name); else { tab = "home"; render(); } }
   },
   profile(){
     const age = num("p-age"), hIn = num("p-h"), wIn = num("p-w"), err = $("#p-err");
@@ -1718,7 +1791,7 @@ const forms = {
     if (kg < 30 || kg > 300) return err.textContent = `Weight looks off. Enter it in ${wtU()}.`;
     const p = {name:($("#p-name").value || "").trim().slice(0,30), sex:$("#p-sex").value, age:Math.round(age), height:r1(h), activity:+$("#p-act").value, pace:+$("#p-pace").value, units:state.profile.units, equip:state.profile.equip, bmiScale:$("#p-bmi").value, goalKg:(g => g != null && toKg(g) >= 30 && toKg(g) <= 300 ? r1(toKg(g)) : null)(num("p-goal"))};
     p.health = readHealth();
-    if (state.demo){ state = freshState(p); state.weights.push({d:today(), kg:r1(kg)}); }
+    if (state.demo){ state = freshState(p); state.weights.push({d:today(), kg:r1(kg)}); if (pendingAck) state.privacyOk = 1; }
     else { state.profile = p; logWeight(kg); }
     save(); closeSheet(); render();
   },
@@ -1759,7 +1832,7 @@ document.addEventListener("click", e => {
   if (viewing && !RO_OK.has(a.dataset.act)) return;
   actions[a.dataset.act](a, e);
 });
-const RO_OK = new Set(["chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
+const RO_OK = new Set(["nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
 document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#sheet").classList.contains("open")) return closeSheet();
   if (!viewing && (e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
@@ -1791,7 +1864,7 @@ if (STANDALONE){
 }
 (function boot(){
   let h = ""; try { h = location.hash.slice(1); } catch(e){}
-  tab = TABS.includes(h) ? h : "today";
+  tab = TABS.includes(h) ? h : "home";
   render();
   initAccess().then(render);
   initCloud().then(trainerInit);
