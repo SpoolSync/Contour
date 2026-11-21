@@ -958,7 +958,8 @@ async function cloudEnter(u){
   else if (reached){
     // A brand-new account. If this phone already tracked data before accounts existed, move it into the account once.
     let legacy = null; try { if (!localStorage.getItem(LOCAL_KEY + ":adopted")) legacy = normalise(JSON.parse(localStorage.getItem(LOCAL_KEY))); } catch(e){}
-    if (legacy && !legacy.demo){ state = legacy; if (!state.profile.name && pendingName) state.profile.name = pendingName; delete state.share; delete state.trainer; if (pendingRole === "trainer") state.profile.role = "trainer"; else delete state.profile.role;
+    // Only a member's own tracking data is moved. A device that was set up as a trainer has no body data worth keeping.
+    if (legacy && !legacy.demo && legacy.profile.role !== "trainer" && pendingRole !== "trainer"){ state = legacy; if (!state.profile.name && pendingName) state.profile.name = pendingName; delete state.share; delete state.trainer; if (pendingRole === "trainer") state.profile.role = "trainer"; else delete state.profile.role;
       try { localStorage.setItem(LOCAL_KEY + ":adopted", u.uid); } catch(e){} save(); }
     else { pendingName = pendingName || u.displayName || ""; if (pendingRole === "trainer") await cloudBecomeTrainer(pendingName); else { render(); profileSheet(); } }
   } else setSync("Offline. Connect once to load your account.");
