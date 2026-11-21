@@ -266,6 +266,7 @@ nav.tabs [data-tab="progress"]{display:none}
 <script src="vendor/firebase-auth-compat.js"></script>
 <script src="vendor/firebase-firestore-compat.js"></script>
 <script src="data/cloud.js"></script>
+<script src="data/pixora-summary.js"></script>
 <script>
 "use strict";
 /* ---------- helpers ---------- */
@@ -399,6 +400,7 @@ function save(){
   const cutoff = daysAgo(180);
   for (const k of Object.keys(state.days)) if (k < cutoff) delete state.days[k];
   try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){}
+  dashKick();
   if (CLOUD) return cloudQueue();
   if (!cloudRef) return;
   clearTimeout(saveTimer); saveTimer = setTimeout(pushCloud, 700);
@@ -1067,7 +1069,29 @@ async function cloudEnter(u){
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
     if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  myId = u.uid; cloudFoods(); cloudTrainerInit();
+  myId = u.uid; cloudFoods(); cloudTrainerInit(); dashKick(2000);
+}
+
+/* ---------- Pixora Today dashboard ----------
+   A short summary of your own day, encrypted on this phone to your own dashboard's key (see data/pixora-summary.js).
+   Only your dashboard can open it. Never sent while a trainer is viewing a client, for trainer accounts, or for the demo. */
+function dashSummary(){
+  const t = today(), tot = dayTotals(t), tg = targets(state.profile, curKg());
+  const wd = weekDates(), ti = wd.indexOf(t), plan = buildWeek()[ti] || {};
+  const W = state.weights, wl = W[W.length-1], w30 = [...W].reverse().find(x => x.d <= daysAgo(30));
+  return {
+    d:t, kcal:Math.round(tot.kcal), target:tg.kcal, p:Math.round(tot.p), pTarget:Math.round(tg.p),
+    loggedToday:(state.days[t] || []).length > 0, streak:streak(),
+    workout:{done:wd.filter(d => state.done[d]).length, of:6, today:plan.t && plan.t !== "Rest" ? plan.t : "", doneToday:!!state.done[t]},
+    weight: wl ? {kg:wl.kg, d:wl.d, u:imp() ? "lb" : "kg", ch30: w30 ? Math.round((wl.kg - w30.kg)*10)/10 : null} : null
+  };
+}
+function dashKick(ms){
+  if (!window.PixoraSummary) return;
+  PixoraSummary.schedule("contour", () => {
+    if (!fdb || !cuser || !state || state.demo || viewing || isTrainer()) return null;
+    return {fdb, uid:cuser.uid, build:dashSummary};
+  }, ms);
 }
 function cloudLeave(){
   if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); mainUnsub = grantsUnsub = foodsUnsub = null; community = []; myId = null;
