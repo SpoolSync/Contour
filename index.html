@@ -292,6 +292,7 @@ nav.tabs [data-tab="progress"]{display:none}
 <script src="data/cloud.js"></script>
 <script src="data/pixora-summary.js"></script>
 <script src="data/vault.js"></script>
+<script src="data/pixora-usage.js"></script>
 <script>
 "use strict";
 /* ---------- helpers ---------- */
@@ -1866,7 +1867,7 @@ function render(){
   v.scrollTop = keep;
   for (const b of document.querySelectorAll("nav.tabs button")) b.toggleAttribute("aria-current", false), b.dataset.tab === tab && b.setAttribute("aria-current","page");
 }
-function go(t){ tab = TABS.includes(t) ? t : "home"; $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
+function go(t){ tab = TABS.includes(t) ? t : "home"; if (window.PixoraUsage) PixoraUsage.track("tab_" + tab); $("#view").scrollTop = 0; render(); try { if (location.hash.slice(1) !== tab) location.hash = tab; } catch(e){} }
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#panel").innerHTML = html; $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
@@ -2230,6 +2231,8 @@ document.addEventListener("click", e => {
   if (e.target.id === "sheet") return closeSheet();
   const a = e.target.closest("[data-act]"); if (!a || !actions[a.dataset.act]) return;
   if (viewing && !RO_OK.has(a.dataset.act)) return;
+  // Anonymous count of which feature was used: the action's fixed name only (data/pixora-usage.js).
+  if (window.PixoraUsage) PixoraUsage.track("act_" + a.dataset.act.replace(/[^a-z0-9]/gi, "_").toLowerCase().slice(0, 36));
   actions[a.dataset.act](a, e);
 });
 const RO_OK = new Set(["part","body-side","nav","privacy","privacy-ok","chk-scan","chk-lookup","chk-recent","close","day","client-exit","lib-region","lib-level","lib-more","rep-days","rep-body","rep-copy","rep-image"]);
@@ -2237,7 +2240,7 @@ document.addEventListener("keydown", e => {
   if (e.key === "Escape" && $("#sheet").classList.contains("open")) return closeSheet();
   if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches("g[data-act]") && (!viewing || e.target.dataset.act === "part")){ e.preventDefault(); actions[e.target.dataset.act](e.target, e); const k = e.target.dataset.region; const n = document.querySelector(`g[data-region="${k}"]`); if (n) n.focus(); }
 });
-document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]) forms[f](); });
+document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
   if (e.target.dataset && e.target.dataset.aiG != null){ const i = +e.target.dataset.aiG, x = aiItems[i]; if (!x) return; const v = parseFloat(e.target.value); x.g = isFinite(v) && v > 0 ? Math.min(v, 3000) : 0;
     $("#ai-k-"+i).textContent = `${Math.round(aiK(x))} kcal · P ${Math.round(x.p100*x.g/100)} C ${Math.round(x.c100*x.g/100)} F ${Math.round(x.f100*x.g/100)}`; $("#ai-addbtn").textContent = aiTotal(); return; } if (e.target.id === "food-q") $("#food-list").innerHTML = foodList(e.target.value); });
@@ -2270,6 +2273,7 @@ if (STANDALONE){
   initCloud().then(trainerInit);
   trainerInit();
   if (STANDALONE && CLOUD){ sampleFn = geminiFn; canImages = true; }
+  if (CLOUD && window.PixoraUsage) PixoraUsage.init("contour", "contour-2026-11-21", () => fdb && cuser ? fdb : null);
   if (window.claude && window.claude.use) window.claude.use("downloads").then(d => { if (d){ dlFn = d; if (tab === "reports") render(); } }).catch(() => {});
   if (window.claude && window.claude.use) window.claude.use("sample").then(async s => {
     if (!s) return; sampleFn = s;
