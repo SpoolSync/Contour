@@ -4,8 +4,11 @@
          shares with gets a sealed copy of it.
      hk  health key: encrypts allergies and health conditions. Never shared with anyone.
      pk  a key pair: trainers receive sealed data keys with it. Its public half is published.
-   The bundle is stored in the account only wrapped by a key made from the person's Contour passcode,
-   so the database, the project owner and any AI see only scrambled bytes.
+   The bundle is stored in the account only wrapped, so the database, the project owner and any AI see only
+   scrambled bytes. Wrapped by either:
+     - the Pixora passcode (kw.px = id of the Pixora master secret): the same master as every Pixora app,
+       with a key derived for Contour only (HKDF info "pixora-app:contour"), so other apps can't read it; or
+     - an older Contour-only passcode (kw.salt, kw.iter), until the person switches.
    On each phone the unwrapped keys are kept in this browser's storage after the first unlock. */
 (function(root){
 "use strict";
@@ -36,17 +39,17 @@ async function openBytes(key,box){return new Uint8Array(await subtle.decrypt({na
 async function sealJSON(key,obj){return sealBytes(key,enc.encode(JSON.stringify(obj)));}
 async function openJSON(key,box){return JSON.parse(dec.decode(await openBytes(key,box)));}
 
-/* The wrapped bundle as stored in the account: {kid, salt, iter, iv, ct}. kid names the current data key. */
-async function wrap(kek,salt,iter,dkRaw,hkRaw,pk8,dkid){
+/* The wrapped bundle as stored in the account: {kid, px, iv, ct} or the older {kid, salt, iter, iv, ct}. kid names the current data key. */
+async function wrap(kek,salt,iter,dkRaw,hkRaw,pk8,dkid,px){
   var box=await sealJSON(kek,{dk:b64(dkRaw),hk:b64(hkRaw),pk:b64(pk8)});
-  return {kid:dkid,salt:b64(salt),iter:iter,iv:box.iv,ct:box.ct};
+  return px?{kid:dkid,px:px,iv:box.iv,ct:box.ct}:{kid:dkid,salt:b64(salt),iter:iter,iv:box.iv,ct:box.ct};
 }
 /* Turns an unwrapped bundle into the keys this phone keeps. */
 async function ready(kek,w,inner){
   var dkRaw=unb64(inner.dk),hkRaw=unb64(inner.hk),pk8=unb64(inner.pk);
   var priv=await subtle.importKey("pkcs8",pk8,{name:"ECDH",namedCurve:"P-256"},true,["deriveKey"]);
   var jwk=await subtle.exportKey("jwk",priv);
-  return {kek:kek,salt:w.salt,iter:w.iter,kid:w.kid,dk:await aes(dkRaw),hk:await aes(hkRaw),priv:priv,pub:{x:jwk.x,y:jwk.y}};
+  return {kek:kek,salt:w.salt,iter:w.iter,px:w.px||null,kid:w.kid,dk:await aes(dkRaw),hk:await aes(hkRaw),priv:priv,pub:{x:jwk.x,y:jwk.y}};
 }
 /* First phone ever for this account: make every key. Returns {keys, kw} where kw goes into the account. */
 async function create(pass){
@@ -68,7 +71,7 @@ async function refresh(keys,w){return ready(keys.kek,w,await openJSON(keys.kek,w
 /* Stop sharing: a brand-new data key, so a trainer who had the old one can't open anything new. */
 async function rotate(keys){
   var dkRaw=rnd(32),hkRaw=new Uint8Array(await subtle.exportKey("raw",keys.hk)),pk8=new Uint8Array(await subtle.exportKey("pkcs8",keys.priv));
-  var w=await wrap(keys.kek,unb64(keys.salt),keys.iter,dkRaw,hkRaw,pk8,kid());
+  var w=await wrap(keys.kek,keys.px?null:unb64(keys.salt),keys.iter,dkRaw,hkRaw,pk8,kid(),keys.px);
   var next=await ready(keys.kek,w,{dk:b64(dkRaw),hk:b64(hkRaw),pk:b64(pk8)});
   dkRaw.fill(0);hkRaw.fill(0);pk8.fill(0);
   return {keys:next,kw:w};
@@ -78,6 +81,40 @@ async function rewrap(keys,pass){
   var salt=rnd(16),kek=await kekFrom(pass,salt,ITER);
   var dkRaw=new Uint8Array(await subtle.exportKey("raw",keys.dk)),hkRaw=new Uint8Array(await subtle.exportKey("raw",keys.hk)),pk8=new Uint8Array(await subtle.exportKey("pkcs8",keys.priv));
   var w=await wrap(kek,salt,ITER,dkRaw,hkRaw,pk8,keys.kid);
+  dkRaw.fill(0);hkRaw.fill(0);pk8.fill(0);
+  return {keys:await ready(kek,w,await openJSON(kek,w)),kw:w};
+}
+
+/* ---- the Pixora passcode ---- */
+async function pxKek(masterRaw){
+  var base=await subtle.importKey("raw",masterRaw,"HKDF",false,["deriveKey"]);
+  return subtle.deriveKey({name:"HKDF",hash:"SHA-256",salt:enc.encode("pixora"),info:enc.encode("pixora-app:contour")},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+}
+/* The Pixora master record {v,id,salt,iter,iv,ct} -> Contour's key. Throws on a wrong passcode. */
+async function pxOpen(pass,mk){
+  var k=await kekFrom(pass,unb64(mk.salt),Math.min(Math.max(+mk.iter||ITER,100000),2000000));
+  var m=unb64(JSON.parse(dec.decode(await openBytes(k,mk))).m),kk=await pxKek(m);m.fill(0);return kk;
+}
+/* A brand-new Pixora passcode (no master yet, or starting over): returns {mk, kek}. mk goes to apps/pixora/users/<uid>. */
+async function pxNew(pass){
+  var m=rnd(32),salt=rnd(16),box=await sealJSON(await kekFrom(pass,salt,ITER),{m:b64(m)}),kk=await pxKek(m);m.fill(0);
+  return {mk:{v:1,id:kid(),salt:b64(salt),iter:ITER,iv:box.iv,ct:box.ct},kek:kk};
+}
+/* First phone, Pixora passcode: make every key, wrapped with Contour's Pixora key. */
+async function createPx(kek,mid){
+  var dkRaw=rnd(32),hkRaw=rnd(32),pair=await subtle.generateKey({name:"ECDH",namedCurve:"P-256"},true,["deriveKey"]);
+  var pk8=new Uint8Array(await subtle.exportKey("pkcs8",pair.privateKey));
+  var w=await wrap(kek,null,0,dkRaw,hkRaw,pk8,kid(),mid);
+  var keys=await ready(kek,w,{dk:b64(dkRaw),hk:b64(hkRaw),pk:b64(pk8)});
+  dkRaw.fill(0);hkRaw.fill(0);pk8.fill(0);
+  return {keys:keys,kw:w};
+}
+/* Open a bundle wrapped with the Pixora passcode. */
+async function unlockPx(kek,w){return ready(kek,w,await openJSON(kek,w));}
+/* Move these keys under the Pixora passcode (or a new Pixora master): same keys, so data and trainer shares keep working. */
+async function adoptPx(keys,kek,mid){
+  var dkRaw=new Uint8Array(await subtle.exportKey("raw",keys.dk)),hkRaw=new Uint8Array(await subtle.exportKey("raw",keys.hk)),pk8=new Uint8Array(await subtle.exportKey("pkcs8",keys.priv));
+  var w=await wrap(kek,null,0,dkRaw,hkRaw,pk8,keys.kid,mid);
   dkRaw.fill(0);hkRaw.fill(0);pk8.fill(0);
   return {keys:await ready(kek,w,await openJSON(kek,w)),kw:w};
 }
@@ -102,5 +139,6 @@ async function openShared(keys,box){
 }
 
 root.ContourVault={ok:!!(subtle&&root.indexedDB),create:create,unlock:unlock,refresh:refresh,rotate:rotate,rewrap:rewrap,
+  pxOpen:pxOpen,pxNew:pxNew,createPx:createPx,unlockPx:unlockPx,adoptPx:adoptPx,
   sealJSON:sealJSON,openJSON:openJSON,shareKey:shareKey,openShared:openShared,load:load,keep:keep,forget:forget};
 })(typeof self!=="undefined"?self:this);

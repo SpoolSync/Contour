@@ -754,7 +754,7 @@ function viewHome(){
   const W = state.weights, wl = W[W.length-1], wOld = [...W].reverse().find(x => x.d <= daysAgo(7)), dW = wl && wOld ? wl.kg - wOld.kg : null;
   const sc = state.scans[state.scans.length-1], wn = state.water[today()] || 0, sk = streak(), R = buildReport(7);
   const sign = v => (v > 0 ? "+" : "−") + Math.abs(v);
-  return `${banner()}
+  return `${banner()}${pxCardHtml()}
   ${verifyCard()}${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data syncs to Pixora's cloud encrypted, so only you and a trainer you choose can read it. Food photo AI is off unless you turn it on. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
   <div><h1>${viewing ? esc(viewing.name) + "'s day" : hi + (nm ? ", " + esc(nm) : "")}</h1><p class="sub">${dateLine}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
   <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${tg.kcal.toLocaleString()}</small></div>
@@ -1135,8 +1135,10 @@ async function cloudLoad(uid, key){
   const md = main.data();
   if (own && md.kw && vkeys && md.kw.kid !== vkeys.kid){
     // The data key was changed on another phone (sharing stopped there): reopen the newer bundle.
-    vkeys = Object.assign(await ContourVault.refresh(vkeys, md.kw), {kw:md.kw, uid}); await ContourVault.keep(uid, vkeys); key = vkeys.dk;
+    try { vkeys = Object.assign(await ContourVault.refresh(vkeys, md.kw), {kw:md.kw, uid}); await ContourVault.keep(uid, vkeys); key = vkeys.dk; }
+    catch(e){ pxNeed = {why:"enter"}; }
   }
+  if (own && md.kw && vkeys) pxNote(md.kw);
   let s;
   if (md.ct){ if (!key) throw {code:"nokey"}; s = await ContourVault.openJSON(key, md); }
   else if (md.json) s = JSON.parse(md.json);
@@ -1157,6 +1159,68 @@ async function cloudLoad(uid, key){
   return st;
 }
 const putLocal = () => { try { localStorage.setItem(localKey, JSON.stringify(state)); } catch(e){} };
+/* ---------- One Pixora passcode ----------
+   Contour's keys are wrapped with the Pixora passcode, the same one as every Pixora app (see data/vault.js).
+   People who set a Contour-only passcode before switch once with a card on Home; the keys stay the same,
+   so their data and any trainer they share with keep working. */
+let pxNeed = null, pxMsg = "", pxCloudKw = null;
+async function pxMk(uid){ const s = await fdb.doc("apps/pixora/users/" + uid).get(); const m = s.exists ? s.data().mk : null; return m && m.id ? m : null; }
+/* Compare the account's bundle with this phone's keys and the current Pixora passcode. */
+function pxNote(kw){
+  pxCloudKw = kw; const u = cuser; if (!u) return;
+  pxMk(u.uid).then(mk => {
+    if (cuser !== u) return;
+    const was = pxNeed && pxNeed.why;
+    if (!kw.px) pxNeed = {why:"switch", mk};
+    else if (!mk || mk.id !== kw.px) pxNeed = {why:"reset", mk};
+    else if (!vkeys || vkeys.px !== kw.px || vkeys.kid !== kw.kid) pxNeed = {why:"enter", mk};
+    else pxNeed = null;
+    if ((pxNeed && pxNeed.why) !== was && access === "open") render();
+  }).catch(() => {});
+}
+function pxCardHtml(){
+  if (!CLOUD || !pxNeed || viewing || !cuser) return "";
+  const why = pxNeed.why, set = why === "switch" && !pxNeed.mk;
+  const title = why === "reset" ? "Enter your new Pixora passcode" : why === "enter" ? "Enter your Pixora passcode" : set ? "Set your Pixora passcode" : "Switch to your Pixora passcode";
+  const text = why === "reset" ? "Your Pixora passcode was changed or reset in another Pixora app. Enter the current one so this phone keeps syncing."
+    : why === "enter" ? "Contour on your other phone switched to the Pixora passcode. Enter it once here."
+    : set ? "Contour now uses one Pixora passcode, shared with your other Pixora apps. Set it once and your Contour passcode is retired. Your data and trainer sharing stay as they are."
+    : "Contour now uses your Pixora passcode, the same one as your other Pixora apps. Enter it once and your Contour passcode is retired. Your data and trainer sharing stay as they are.";
+  return `<section class="card" style="border:1px solid var(--line)"><div><h2>${title}</h2><p class="sub">${text}</p></div>
+  <form data-form="pxsw" style="display:flex;flex-direction:column;gap:12px"><label class="f">Pixora passcode<input id="px-p1" type="password" autocomplete="${set ? "new-password" : "current-password"}" style="font-size:16px"></label>
+  ${set ? `<label class="f">Repeat it<input id="px-p2" type="password" autocomplete="new-password" style="font-size:16px"></label>` : ""}
+  <div class="err" id="px-err">${esc(pxMsg)}</div><button class="btn" id="px-go">${set ? "Set passcode" : "Continue"}</button></form></section>`;
+}
+async function pxSubmit(){
+  const p1 = ($("#px-p1") || {}).value || "", p2 = ($("#px-p2") || {}).value || "", btn = $("#px-go"), say = t => { pxMsg = t; const e = $("#px-err"); if (e) e.textContent = t; };
+  if (!pxNeed || !cuser || !vkeys) return;
+  const u = cuser, set = pxNeed.why === "switch" && !pxNeed.mk;
+  if (set && p1.length < 4) return say("Use at least 4 characters. Six or more is much harder to guess.");
+  if (set && p1 !== p2) return say("The two passcodes don't match.");
+  if (btn){ btn.disabled = true; btn.textContent = "Working…"; }
+  try {
+    let mk = await pxMk(u.uid), kek;
+    if (mk){ try { kek = await ContourVault.pxOpen(p1, mk); } catch(e){ throw {code:"wrong"}; } }
+    else { const n = await ContourVault.pxNew(p1); mk = n.mk; kek = n.kek; await fdb.doc("apps/pixora/users/" + u.uid).set({mk}, {merge:true}); }
+    const snap = await fdb.doc(`${APP}/users/${u.uid}`).get(), kw = snap.exists ? snap.data().kw : null;
+    if (kw && kw.px === mk.id){
+      // Another phone already switched: open the account's bundle with the Pixora passcode.
+      vkeys = Object.assign(await ContourVault.unlockPx(kek, kw), {kw, uid:u.uid});
+    } else {
+      if (kw && kw.kid !== vkeys.kid) throw {code:"stale"};
+      const r = await ContourVault.adoptPx(vkeys, kek, mk.id);
+      await fdb.doc(`${APP}/users/${u.uid}`).set({kw:r.kw}, {mergeFields:["kw"]});
+      vkeys = Object.assign(r.keys, {kw:r.kw, uid:u.uid});
+    }
+    await ContourVault.keep(u.uid, vkeys);
+    if (window.PixoraUsage) PixoraUsage.track("px_switch");
+    pxNeed = null; pxMsg = ""; toast("Done. Contour now opens with your Pixora passcode."); render();
+  } catch(e){
+    if (btn){ btn.disabled = false; btn.textContent = set ? "Set passcode" : "Continue"; }
+    say(e && e.code === "wrong" ? "That isn't your Pixora passcode." : e && e.code === "stale" ? "Your account's keys changed on another phone. Open Contour there first, then try again here." : offline() ? "No connection. Connect and try again." : "Something went wrong. Try again.");
+  }
+}
+
 /* ---------- Contour passcode: unlocks this account's keys on this phone, once ---------- */
 let vkeys = null, vpend = null, vmsg = "", vforce = false;
 async function vaultReady(u){
@@ -1167,30 +1231,48 @@ async function vaultReady(u){
   try { snap = await Promise.race([fdb.doc(`${APP}/users/${u.uid}`).get(), late(10000)]); }
   catch(e){ access = "vault"; vpend = {u, mode:"offline"}; return false; }
   const kw = snap.exists ? snap.data().kw : null;
-  access = "vault"; vpend = {u, mode: kw ? "enter" : "set", kw: kw || null, legacy: snap.exists && !kw && !!snap.data().json}; vmsg = "";
+  let mk = null; try { mk = await pxMk(u.uid); } catch(e){}
+  access = "vault"; vpend = {u, mode: kw ? (kw.px ? "pxenter" : "enter") : "pxnew", kw: kw || null, mk, legacy: snap.exists && !kw && !!snap.data().json}; vmsg = "";
   return false;
 }
 async function vaultSubmit(){
   const p1 = ($("#v-p1") || {}).value || "", p2 = ($("#v-p2") || {}).value || "", btn = $("#v-go"), say = t => { vmsg = t; const e = $("#v-err"); if (e) e.textContent = t; };
   if (!vpend || !vpend.u) return;
-  if (vpend.mode === "set" || vpend.mode === "reset"){ if (p1.length < 4) return say("Use at least 4 characters."); if (p1 !== p2) return say("The two passcodes don't match."); }
-  if (btn){ btn.disabled = true; btn.textContent = vpend.mode === "set" ? "Setting up…" : "Unlocking…"; }
+  const pxSetting = (vpend.mode === "pxnew" && !vpend.mk) || vpend.mode === "pxreset";
+  if (vpend.mode === "set" || vpend.mode === "reset" || pxSetting){ if (p1.length < 4) return say("Use at least 4 characters."); if (p1 !== p2) return say("The two passcodes don't match."); }
+  if (btn){ btn.disabled = true; btn.textContent = vpend.mode === "set" || pxSetting ? "Setting up…" : "Unlocking…"; }
   const u = vpend.u;
+  let pxWrong = false, pxStale = false;
   try {
-    if (vpend.mode === "set" || vpend.mode === "reset"){
+    if (vpend.mode === "pxnew" || vpend.mode === "pxreset"){
+      if (vpend.mode === "pxreset"){ const ms = await fdb.collection(`${APP}/users/${u.uid}/months`).get(); for (const d of ms.docs) monthSig[d.id] = "reset"; vforce = true; }
+      let kek, mk = vpend.mode === "pxnew" ? vpend.mk : null;
+      if (mk){ try { kek = await ContourVault.pxOpen(p1, mk); } catch(e){ pxWrong = true; throw e; } }
+      else { const n = await ContourVault.pxNew(p1); mk = n.mk; kek = n.kek; await fdb.doc("apps/pixora/users/" + u.uid).set({mk}, {merge:true}); }
+      const r = await ContourVault.createPx(kek, mk.id);
+      await fdb.doc(`${APP}/users/${u.uid}`).set({kw:r.kw}, {mergeFields:["kw"]});
+      vkeys = Object.assign(r.keys, {kw:r.kw, uid:u.uid});
+    } else if (vpend.mode === "pxenter"){
+      const mk = await pxMk(u.uid); if (!mk) throw {code:"nomk"};
+      let kek; try { kek = await ContourVault.pxOpen(p1, mk); } catch(e){ pxWrong = true; throw e; }
+      if (mk.id !== vpend.kw.px){ pxStale = true; throw {code:"stale"}; }
+      vkeys = Object.assign(await ContourVault.unlockPx(kek, vpend.kw), {kw:vpend.kw, uid:u.uid});
+    } else if (vpend.mode === "set" || vpend.mode === "reset"){
       if (vpend.mode === "reset"){
         // Forgot the passcode: the cloud copy can't be opened any more. Start fresh keys and replace it with this phone's copy.
         const ms = await fdb.collection(`${APP}/users/${u.uid}/months`).get(); for (const d of ms.docs) monthSig[d.id] = "reset"; vforce = true;
       }
       const r = await ContourVault.create(p1);
-      await fdb.doc(`${APP}/users/${u.uid}`).set({kw:r.kw}, {merge:true});
+      await fdb.doc(`${APP}/users/${u.uid}`).set({kw:r.kw}, {mergeFields:["kw"]});
       vkeys = Object.assign(r.keys, {kw:r.kw, uid:u.uid});
     } else {
       vkeys = Object.assign(await ContourVault.unlock(p1, vpend.kw), {kw:vpend.kw, uid:u.uid});
     }
     await ContourVault.keep(u.uid, vkeys);
   } catch(e){
-    if (btn){ btn.disabled = false; btn.textContent = vpend.mode === "enter" ? "Unlock" : "Set passcode"; }
+    if (btn){ btn.disabled = false; btn.textContent = vpend.mode === "enter" || vpend.mode === "pxenter" || (vpend.mode === "pxnew" && vpend.mk) ? "Unlock" : "Set passcode"; }
+    if (pxStale) return say("Your Pixora passcode was reset in another app, so the Contour copy in your account can't be opened with it. Use \"Forgot it? Start over\" below to replace it with this phone's copy.");
+    if (pxWrong) return say("That isn't your Pixora passcode.");
     return say(vpend.mode === "enter" ? "That isn't your Contour passcode." : "Couldn't save. Check your connection and try again.");
   }
   vpend = null; vmsg = ""; access = "checking"; render();
@@ -1199,6 +1281,18 @@ async function vaultSubmit(){
 function vaultGate(){
   const m = vpend ? vpend.mode : "offline";
   if (m === "offline") return `<section class="card"><h1>Connect once to finish</h1><p class="sub">Contour now encrypts your data on your phone before it reaches the cloud. Connect to the internet once so this phone can set that up.</p><button class="btn" data-act="vault-retry">Try again</button><button class="linkbtn" data-act="logout" style="align-self:flex-start">Log out</button></section>`;
+  if (m === "pxenter" || m === "pxnew" || m === "pxreset"){
+    const pset = m === "pxreset" || (m === "pxnew" && !vpend.mk);
+    return `<div><h1>${pset ? "Set your Pixora passcode" : "Enter your Pixora passcode"}</h1><p class="sub">${m === "pxreset" ? "A new Pixora passcode for all your Pixora apps, and new keys for Contour. The old cloud copy is replaced with what's on this phone. Other Pixora apps will ask for the new passcode once."
+      : pset ? "One passcode for every Pixora app. It protects the key that encrypts your data before it reaches the cloud, so nobody else can read it, not even Pixora. You type it once per phone."
+      : "The same passcode you use in your other Pixora apps. You type it once on this phone."}</p></div>
+  <section class="card"><form data-form="vault" style="display:flex;flex-direction:column;gap:12px">
+    <label class="f">Pixora passcode<input id="v-p1" type="password" autocomplete="${pset ? "new-password" : "current-password"}" style="font-size:16px"></label>
+    ${pset ? `<label class="f">Repeat it<input id="v-p2" type="password" autocomplete="new-password" style="font-size:16px"><small>It can't be recovered, so pick one you'll remember.</small></label>` : ""}
+    <div class="err" id="v-err">${esc(vmsg)}</div><button class="btn" id="v-go">${pset ? "Set passcode" : "Unlock"}</button></form>
+    ${m === "pxenter" ? `<button class="linkbtn" data-act="vault-forgot" style="color:var(--high);font-size:13.5px;align-self:flex-start">${vpend.arm ? "Tap again: new Pixora passcode, and your cloud data is replaced with this phone's copy" : "Forgot it? Start over from this phone"}</button>` : ""}
+    <button class="linkbtn" data-act="logout" style="font-size:13.5px;align-self:flex-start">Use a different account</button></section>`;
+  }
   const set = m === "set" || m === "reset";
   return `<div><h1>${set ? "Set a Contour passcode" : "Enter your Contour passcode"}</h1><p class="sub">${set
       ? (m === "reset" ? "New keys for your account. The old cloud copy is replaced with what's on this phone." : vpend.legacy ? "Contour now encrypts your data on your phone before it goes to the cloud, so nobody else can read it, not even Pixora. Pick a passcode to protect your key. You type it once per phone." : "It protects the key that encrypts your data before it reaches the cloud, so nobody else can read it, not even Pixora. You type it once per phone.")
@@ -1274,7 +1368,7 @@ function cloudLeave(){
   if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); if (prodUnsub) prodUnsub(); mainUnsub = grantsUnsub = foodsUnsub = prodUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
   clearTimeout(pushTimer); acctLoading = false; ob = null; obForce = false; tourEnd(); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
-function cloudLogout(){ closeSheet(); authTab = "login"; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
+function cloudLogout(){ closeSheet(); authTab = "login"; pxNeed = null; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
 function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
 /* The directory lets a member find a trainer by email; it holds name, role and the public half of the key pair.
    Health details go only into the account's own profile, encrypted with a key that is never shared. */
@@ -2433,7 +2527,7 @@ async function runAI(text, file){
 const num = id => { const el = $("#"+id); const v = el ? parseFloat(el.value) : NaN; return isFinite(v) ? v : null; };
 const actions = {
   "vault-retry"(){ if (cuser){ vpend = null; access = "checking"; render(); cloudEnter(cuser).then(render); } },
-  "vault-forgot"(){ if (!vpend) return; if (!vpend.arm){ vpend.arm = 1; return render(); } vpend.mode = "reset"; vpend.arm = 0; vmsg = ""; render(); },
+  "vault-forgot"(){ if (!vpend) return; if (!vpend.arm){ vpend.arm = 1; return render(); } vpend.mode = vpend.mode === "pxenter" ? "pxreset" : "reset"; vpend.arm = 0; vmsg = ""; render(); },
   "ai-on"(){ if (viewing) return; if (state.demo) return needProfile(); state.aiOn = 1; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
   "ai-off"(){ if (viewing) return; state.aiOn = 0; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
   close: closeSheet,
@@ -2611,6 +2705,7 @@ const forms = {
   },
 
   vault(){ vaultSubmit(); },
+  pxsw(){ pxSubmit(); },
   chk(){ const el = $("#chk-code2") || $("#chk-code"), v = el ? el.value : ""; if ($("#chk-code2")){ closeSheet(); tab = "check"; } lookup(v); },
   mealcode(){ gotCodeTyped($("#meal-code").value); },
   tname(){ const n = ($("#t-name").value || "").trim(); if (!n) return; state.profile.name = n.slice(0, 30); save(); closeSheet(); render(); },
