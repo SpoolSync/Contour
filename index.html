@@ -348,6 +348,8 @@ nav.tabs [data-tab="progress"]{display:none}
 .badge i{font-style:normal;font-size:18px;color:var(--accent)}
 .badge b{font-size:13.5px}.badge small{font-size:11.5px;color:var(--muted)}
 .coach{border:1.5px solid var(--scan)}
+.insight{border-left:3px solid var(--scan);padding:2px 0 2px 10px;margin-top:8px}
+.insight b{font-size:13px}.insight p{margin:2px 0 0;font-size:13.5px;color:var(--muted);line-height:1.45}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -774,7 +776,7 @@ function viewHome(){
       <div class="read"><span>Body</span><span class="v" style="font-weight:500">Scans, measurements and body fat</span></div>
       <div class="read"><span>Plan</span><span class="v" style="font-weight:500">Pick areas to work on, get a weekly plan</span></div>
       <div class="read"><span>Check</span><span class="v" style="font-weight:500">Scan a product to see if it suits you</span></div></div></section>`;
-  const tg = targets(state.profile, curKg()), t = dayTotals(today()), left = Math.round(tg.kcal - t.kcal), pct = Math.min(100, t.kcal/tg.kcal*100), m = mealNow();
+  const tg = targets(state.profile, curKg()), t = dayTotals(today()), bud = dayBudget(today()), left = Math.round(bud - t.kcal), pct = Math.min(100, t.kcal/bud*100), m = mealNow(), unl = !viewing && (new Date().getHours() >= 14 && !(state.days[today()] || []).some(e => e.meal === "Lunch") ? "Lunch" : new Date().getHours() >= 20 && !(state.days[today()] || []).some(e => e.meal === "Dinner") ? "Dinner" : "");
   const wd = weekDates(), ti = wd.indexOf(today()), day = buildWeek()[ti], done = !!state.done[today()];
   const W = state.weights, wl = W[W.length-1], wOld = [...W].reverse().find(x => x.d <= daysAgo(7)), dW = wl && wOld ? wl.kg - wOld.kg : null;
   const sc = state.scans[state.scans.length-1], wn = state.water[today()] || 0, sk = streak(), R = buildReport(7);
@@ -782,9 +784,9 @@ function viewHome(){
   return `${banner()}${pxCardHtml()}
   ${verifyCard()}${!state.demo && !state.privacyOk && !viewing ? `<section class="card" style="border:1px solid var(--line)"><div><h2>A quick heads-up about your data</h2><p class="sub">${CLOUD ? "Your data syncs to Pixora's cloud encrypted, so only you and a trainer you choose can read it. Food photo AI is off unless you turn it on. Body scan photos stay on your phone." : "Here is what Contour keeps and who can see it."}</p></div><div class="grid2"><button class="btn alt" data-act="privacy">Read it</button><button class="btn alt" data-act="privacy-ok">Got it</button></div></section>` : ""}
   <div><h1>${viewing ? esc(viewing.name) + "'s day" : hi + (nm ? ", " + esc(nm) : "")}</h1><p class="sub">${dateLine}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
-  <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${tg.kcal.toLocaleString()}</small></div>
+  <section class="hero"><div class="row between" style="align-items:flex-end"><div><span class="num">${Math.abs(left).toLocaleString()}</span><small> kcal ${left >= 0 ? "left today" : "over today"}</small></div><small>${Math.round(t.kcal).toLocaleString()} of ${bud.toLocaleString()}${bud > tg.kcal ? " incl. exercise" : ""}</small></div>
     <div class="bar" style="height:8px"><i style="width:${pct}%;${left < 0 ? "background:var(--watch)" : ""}"></i></div>
-    <small>Protein ${Math.round(t.p)} of ${tg.p} g · Carbs ${Math.round(t.c)} g · Fat ${Math.round(t.f)} g</small>
+    <small>Protein ${Math.round(t.p)} of ${tg.p} g · Carbs ${Math.round(t.c)} g · Fat ${Math.round(t.f)} g${unl ? ` · ${unl} isn't logged yet` : ""}</small>
     <div class="acts act"><button class="btn" data-act="addfood" data-meal="${m}">Log ${m.toLowerCase()}</button>${STANDALONE ? `<button class="btn alt" data-act="home-scan" data-meal="${m}">Scan a barcode</button>` : `<button class="btn alt" data-act="nav" data-v="today">See today's food</button>`}</div></section>
   <div class="tiles">
     <div class="tile"><label>Water</label><span class="num">${wn}<small>/ ${WATER_GOAL}</small></span><div class="mini"><span class="sub">glasses</span><span class="act"><button data-act="water" data-d="1" aria-label="Add a glass of water">+</button></span></div></div>
@@ -793,6 +795,7 @@ function viewHome(){
     <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
   </div>
   ${coachCard()}
+  ${checkCard()}
   ${startCard()}
   ${winsCard()}
   <button class="btn alt" data-act="nav" data-v="reports">See your weekly report</button>`;
@@ -807,7 +810,7 @@ function healthCard(){
 function viewToday(){
   const wn = state.water[vd()] || 0, sk = streak();
   const tg = targets(state.profile, curKg()), t = dayTotals(vd());
-  const left = Math.round(tg.kcal - t.kcal), frac = Math.min(1, t.kcal/tg.kcal), C = 2*Math.PI*56;
+  const bud = dayBudget(vd()), left = Math.round(bud - t.kcal), frac = Math.min(1, t.kcal/bud), C = 2*Math.PI*56;
   const macro = (n, v, goal) => `<div class="m"><span>${n}</span><div class="bar"><i style="width:${Math.min(100, v/goal*100)}%"></i></div><span class="num" style="font-size:13px">${Math.round(v)}<span style="color:var(--muted);font-weight:500"> / ${goal} g</span></span></div>`;
   const entries = state.days[vd()] || [];
   const meals = MEALS.map(m => { const es = entries.filter(e => e.meal === m), k = es.reduce((a,e) => a + e.kcal*e.qty, 0);
@@ -822,13 +825,14 @@ function viewToday(){
   <div><p class="sub">${parseD(vd()).toLocaleDateString(undefined,{weekday:"long",month:"long",day:"numeric"})} · target ${tg.kcal} kcal ${paceText()}${sk > 1 ? ` · ${sk}-day logging streak` : ""}</p></div>
   <section class="card"><div class="ringwrap">
     <div class="ring"><svg viewBox="0 0 132 132"><circle cx="66" cy="66" r="56" fill="none" stroke="var(--sunk)" stroke-width="12"/><circle cx="66" cy="66" r="56" fill="none" stroke="${left < 0 ? "var(--watch)" : "var(--accent)"}" stroke-width="12" stroke-linecap="round" stroke-dasharray="${C}" stroke-dashoffset="${C*(1-frac)}"/></svg>
-      <div class="mid"><span class="num">${Math.round(t.kcal)}</span><small>of ${tg.kcal} kcal</small></div></div>
+      <div class="mid"><span class="num">${Math.round(t.kcal)}</span><small>of ${bud} kcal</small></div></div>
     <div class="macro">${macro("Protein", t.p, tg.p)}${macro("Carbs", t.c, tg.c)}${macro("Fat", t.f, tg.f)}</div>
   </div>${tg.floored ? `<p class="sub">Your target is held at a safe minimum. A faster pace would cut too low.</p>` : ""}</section>
   <section class="card"><div class="row between"><div><h2>Water</h2><p class="sub">${wn} of ${WATER_GOAL} glasses · 250 ml each</p></div>
     <div class="step"><button data-act="water" data-d="-1" aria-label="One glass less">−</button><span>${wn}</span><button data-act="water" data-d="1" aria-label="One glass more">+</button></div></div>
     <div class="water" aria-hidden="true">${[...Array(Math.max(WATER_GOAL, wn))].map((_, i) => `<i class="${i < wn ? "on" : ""}"></i>`).join("")}</div></section>
   ${healthCard()}
+  ${actCard()}
   ${fastCard()}
   ${meals}
   ${ideasCard(left, tg.p - t.p)}
@@ -2081,6 +2085,57 @@ function badgesCard(){
   const got = state.badges || {}, n = BADGES.filter(b => got[b[0]]).length;
   return `<section class="card"><div class="row between"><h2>Badges</h2><span class="sub">${n} of ${BADGES.length}</span></div><div class="badges">${BADGES.map(([id, name, how]) => `<div class="badge${got[id] ? " on" : ""}" title="${esc(how)}"><i aria-hidden="true">${got[id] ? "★" : "☆"}</i><b>${esc(name)}</b><small>${got[id] ? "Earned " + shortD(got[id]) : esc(how)}</small></div>`).join("")}</div></section>`;
 }
+/* ---------- exercise log: calories burned, partly added back to the day's budget ---------- */
+const ACTS_MET = [["Walking",3.5],["Brisk walk",4.3],["Running",9.8],["Cycling",7.5],["Swimming",7],["Strength training",5],["HIIT",8],["Yoga or stretching",2.5],["Dancing",5],["Hiking",6],["Sports",6],["Stairs",8],["Housework or gardening",3.3]];
+const eatBack = () => state.eatBack == null ? 0.5 : +state.eatBack;
+const actBurn = d => (state.acts && state.acts[d] || []).reduce((a, x) => a + (x.kcal || 0), 0);
+const dayBudget = d => targets(state.profile, curKg()).kcal + Math.round(actBurn(d)*eatBack());
+function actKcal(met, min){ return Math.round(met*curKg()*min/60); }
+function actCard(){
+  const L = (state.acts && state.acts[vd()]) || [], b = actBurn(vd());
+  if (viewing && !L.length) return "";
+  return `<section class="card"><div class="row between"><div><h2>Exercise</h2><p class="sub">${b ? `${b} kcal burned${eatBack() ? ` · ${Math.round(b*eatBack())} added to today's budget` : ""}` : "Walks, workouts and sports add to what you can eat."}</p></div>${viewing ? "" : `<button class="pillbtn" data-act="act-open">Add</button>`}</div>
+    ${L.map(x => `<div class="entry"><div><b>${esc(x.name)}</b><small>${x.min} min · ${x.kcal} kcal</small></div>${viewing ? "" : `<button class="linkbtn" data-act="act-del" data-id="${esc(x.id)}" style="color:var(--muted);font-size:12.5px">Remove</button>`}</div>`).join("")}</section>`;
+}
+let actPick = 0;
+function actSheet(){
+  openSheet(`${head("Add exercise")}<div class="chips">${ACTS_MET.map(([n], i) => `<button type="button" class="chip${i === actPick ? " on" : ""}" data-act="act-pick" data-i="${i}">${n}</button>`).join("")}</div>
+    <form data-form="act" style="display:flex;flex-direction:column;gap:12px"><label class="f">Minutes<input id="act-min" type="number" inputmode="numeric" min="1" max="600" value="30"></label>
+    <p class="sub" id="act-est">About ${actKcal(ACTS_MET[actPick][1], 30)} kcal for you.</p>
+    <div class="f">Add burned calories back to my food budget<div class="seg" role="group" aria-label="Eat back" style="margin-top:6px">${[[0,"None"],[0.5,"Half"],[1,"All"]].map(([v, l]) => `<button type="button" data-act="eatback" data-v="${v}" aria-pressed="${eatBack() === v}">${l}</button>`).join("")}</div><small class="sub">Half is a safe choice: trackers and watches tend to overestimate burn.</small></div>
+    <button class="btn">Add</button></form>`);
+}
+/* ---------- daily check-in: sleep, energy, steps ---------- */
+function checkCard(){
+  if (viewing || state.demo) return ""; const c = (state.check || {})[today()] || {};
+  if (c.skip || (c.sleep != null && c.energy != null)) return "";
+  return `<section class="card"><div class="row between"><h2>Daily check-in</h2><button class="linkbtn" data-act="ck-skip" style="color:var(--muted);font-size:12.5px">Not today</button></div>
+    <div><span class="sub">Sleep last night</span><div class="chips">${[5,6,7,8,9].map(h => `<button class="chip${c.sleep === h ? " on" : ""}" data-act="ck" data-k="sleep" data-v="${h}">${h === 5 ? "5 h or less" : h === 9 ? "9 h +" : h + " h"}</button>`).join("")}</div></div>
+    <div><span class="sub">Energy today</span><div class="chips">${["Drained","Low","Okay","Good","Great"].map((l, i) => `<button class="chip${c.energy === i + 1 ? " on" : ""}" data-act="ck" data-k="energy" data-v="${i + 1}">${l}</button>`).join("")}</div></div>
+    <p class="sub" style="font-size:12px">Ten seconds a day. After a couple of weeks, Contour shows how your sleep and energy connect to your eating and training.</p></section>`;
+}
+/* ---------- patterns: plain findings from your own log ---------- */
+function insights(){
+  const out = [], days = [...Array(28)].map((_, i) => daysAgo(i + 1)), kc = d => dayTotals(d).kcal, full = days.filter(d => kc(d) > 800), avg = a => a.reduce((x, y) => x + y, 0)/(a.length || 1);
+  const we = full.filter(d => [0, 6].includes(parseD(d).getDay())), wk = full.filter(d => ![0, 6].includes(parseD(d).getDay()));
+  if (we.length >= 3 && wk.length >= 5){ const diff = avg(we.map(kc)) - avg(wk.map(kc)); if (Math.abs(diff) >= 150) out.push(["Weekends", `You eat about ${Math.round(Math.abs(diff))} kcal ${diff > 0 ? "more" : "less"} a day on weekends than on weekdays.${diff > 0 ? " Planning one weekend meal ahead usually closes most of the gap." : ""}`]); }
+  const C = state.check || {}, nextDay = d => ymd(new Date(parseD(d).getTime() + 864e5));
+  const short = full.filter(d => C[d] && C[d].sleep != null && C[d].sleep <= 6), longS = full.filter(d => C[d] && C[d].sleep >= 7);
+  if (short.length >= 3 && longS.length >= 3){ const diff = avg(short.map(kc)) - avg(longS.map(kc)); if (Math.abs(diff) >= 120) out.push(["Sleep", `On days after 6 hours of sleep or less, you eat about ${Math.round(Math.abs(diff))} kcal ${diff > 0 ? "more" : "less"} than after 7 hours or more.`]); }
+  const en = days.filter(d => C[d] && C[d].energy), wE = en.filter(d => state.done[d]), nE = en.filter(d => !state.done[d]);
+  if (wE.length >= 3 && nE.length >= 3){ const diff = avg(wE.map(d => C[d].energy)) - avg(nE.map(d => C[d].energy)); if (Math.abs(diff) >= 0.4) out.push(["Energy", `Your energy is ${diff > 0 ? "higher" : "lower"} on days you train (${avg(wE.map(d => C[d].energy)).toFixed(1)} vs ${avg(nE.map(d => C[d].energy)).toFixed(1)} out of 5).`]); }
+  const bf = full.map(d => (state.days[d] || []).filter(e => e.meal === "Breakfast").reduce((a, e) => a + e.p*e.qty, 0)).filter((_, i) => (state.days[full[i]] || []).some(e => e.meal === "Breakfast"));
+  if (bf.length >= 5 && avg(bf) < 15) out.push(["Breakfast", `Your breakfast averages ${Math.round(avg(bf))} g of protein. Getting it to 25 g or more tends to make the rest of the day easier.`]);
+  const sn = full.map(d => { const L = state.days[d] || [], t = L.reduce((a, e) => a + e.kcal*e.qty, 0); return t ? L.filter(e => e.meal === "Snacks").reduce((a, e) => a + e.kcal*e.qty, 0)/t : 0; });
+  if (full.length >= 7 && avg(sn) > 0.3) out.push(["Snacks", `Snacks are about ${Math.round(avg(sn)*100)}% of your calories. Moving some of that into meals with protein often cuts the total.`]);
+  const tg = targets(state.profile, curKg()), hit = full.filter(d => Math.abs(kc(d) - dayBudget(d)) <= tg.kcal*0.1).length;
+  if (full.length >= 10) out.push(["Consistency", `You landed within 10% of your target on ${hit} of the last ${full.length} logged days.`]);
+  return out;
+}
+function insightsCard(){
+  const I = insights();
+  return `<section class="card"><h2>Patterns</h2>${I.length ? I.map(([t, x]) => `<div class="insight"><b>${t}</b><p>${esc(x)}</p></div>`).join("") : `<p class="sub">Patterns appear after a couple of weeks of logging food, sleep and energy. Each one only shows when your own data backs it up.</p>`}</section>`;
+}
 /* ---------- weekly wins: only goals actually reached ---------- */
 function weeklyWins(n){
   n = n || 7; const dates = [...Array(n)].map((_, i) => daysAgo(n-1-i)), from = dates[0], tg = targets(state.profile, curKg()), tots = dates.map(dayTotals), W = [];
@@ -2576,6 +2631,7 @@ function viewProgress(){
   <section class="card"><div class="row between"><h2>Weight</h2><span class="num" style="font-size:20px">${w.length ? showWt(w[w.length-1].kg) + " " + wtU() : "–"}</span></div>
     ${lineChart(w.map(x => ({d:x.d, v:x.kg})), "var(--accent)", wtU(), v => imp() ? v*2.20462 : v)}${trendLine()}
     <form class="row" data-form="weight"><label class="f" style="flex:1">Today’s weight (${wtU()})<input id="w-in" type="number" inputmode="decimal" step="0.1" min="20" max="700" required></label><button class="btn" style="width:auto;align-self:flex-end">Log</button></form></section>
+  ${insightsCard()}
   ${strengthCard()}
   ${badgesCard()}
   <section class="card"><h2>Body fat</h2>${lineChart(bfp, "var(--scan)", "%", v => v)}</section>
@@ -2817,6 +2873,12 @@ const actions = {
   "scan-torch"(el){ const t = scanStream && scanStream.getVideoTracks()[0]; if (!t) return; const on = el.getAttribute("aria-pressed") !== "true"; t.applyConstraints({advanced:[{torch:on}]}).then(() => el.setAttribute("aria-pressed", on)).catch(() => {}); },
   "draft-discard"(el){ const f = el.closest("form[data-form]"); if (!f) return; draftClear(draftKey(f)); f.reset(); f.querySelectorAll("[data-act][aria-pressed]").forEach((b, i, a) => b.setAttribute("aria-pressed", b === a[0])); const n = f.querySelector(".draftnote"); if (n) n.remove(); },
   "pp-add"(el){ photoPicker(el.dataset.code); },
+  "act-open"(){ actSheet(); },
+  "act-pick"(el){ actPick = +el.dataset.i; const m = ($("#act-min") || {}).value; actSheet(); if (m) { $("#act-min").value = m; $("#act-est").textContent = `About ${actKcal(ACTS_MET[actPick][1], +m || 0)} kcal for you.`; } },
+  "eatback"(el){ state.eatBack = +el.dataset.v; save(); for (const b of el.parentNode.children) b.setAttribute("aria-pressed", b === el); render(); },
+  "act-del"(el){ const L = (state.acts || {})[vd()] || [], i = L.findIndex(x => x.id === el.dataset.id); if (i < 0) return; const [x] = L.splice(i, 1); save(); render(); toast(`Removed ${x.name}`, () => { L.splice(i, 0, x); save(); render(); }); },
+  ck(el){ const c = ((state.check ||= {})[today()] ||= {}); c[el.dataset.k] = +el.dataset.v; save(); render(); if (c.sleep != null && c.energy != null) toast("Checked in. Thanks."); },
+  "ck-skip"(){ const c = ((state.check ||= {})[today()] ||= {}); if (c.sleep == null) c.sleep = null; c.energy = c.energy || 0; c.skip = 1; save(); render(); },
   "rc-open"(){ rcp = null; recipeSheet(); },
   "rc-edit"(el){ const r = state.recipes[+el.dataset.i]; if (!r) return; rcp = JSON.parse(JSON.stringify(r)); rcp.edit = +el.dataset.i; recipeSheet(); },
   "rc-add"(el){ rcpStash(); const a = rcpHits[+el.dataset.i]; if (!a) return; rcp.items.push({a:[...a], q:1}); recipeSheet(); const q = $("#rc-q"); if (q) q.focus(); },
@@ -2859,7 +2921,8 @@ const actions = {
         if (!(reps > 0) && !(kgIn > 0)) return; const kg = kgIn > 0 ? (imp() ? kgIn/2.20462 : kgIn) : 0, k = liftKey(n), L = (state.lifts[k] ||= []);
         const prev = L.reduce((b, y) => Math.max(b, y.kg || 0), 0); L.push({d:today(), n, kg:Math.round(kg*100)/100, reps:reps > 0 ? reps : null}); if (L.length > 60) L.shift(); logged++;
         if (kg > prev && prev > 0) setTimeout(() => toast(`New best on ${n}: ${showWt(kg)} ${wtU()}!`), 900); }); }
-    state.done[today()] = true; save(); closeSheet(); render(); },
+    state.done[today()] = true; { const wd = weekDates(), day = buildWeek()[wd.indexOf(today())], L = ((state.acts ||= {})[today()] ||= []); if (day && !L.some(x => x.plan)){ const cardio = /cardio|interval|walk|steps/i.test(day.t), met = /interval/i.test(day.t) ? 8 : cardio ? 5 : 5, min = cardio ? 35 : 40; L.push({id:uid(), name:"Workout: " + day.t, min, kcal:actKcal(met, min), plan:1}); } }
+    save(); closeSheet(); render(); },
   "tex-new"(){ texSheet(null); },
   "tex-edit"(el){ texSheet(el.dataset.id); },
   async "tex-del"(el){ if (el.dataset.sure !== "1"){ el.dataset.sure = "1"; el.textContent = "Tap again to delete"; return; } try { await fdb.doc(`${APP}/exercises/${el.dataset.id}`).delete(); texMsg = ""; } catch(e){ texMsg = "It could not be deleted. Check your connection."; render(); } },
@@ -2916,6 +2979,8 @@ async function readScanPhoto(file){
   } catch(e){ out.textContent = AI_COPY[e && e.code] || "The photo could not be read. Type the numbers in instead."; }
 }
 const forms = {
+  act(){ const min = parseInt(($("#act-min") || {}).value); if (!(min > 0 && min <= 600)) return; const [n, met] = ACTS_MET[actPick];
+    ((state.acts ||= {})[vd()] ||= []).push({id:uid(), name:n, min, kcal:actKcal(met, min)}); save(); closeSheet(); render(); toast(`Added ${n}, ${actKcal(met, min)} kcal`); },
   savemeal(){ const f = document.querySelector('form[data-form="savemeal"]'), m = f.dataset.meal, name = ($("#sm-name").value || "").trim(), es = (state.days[vd()] || []).filter(e => e.meal === m);
     if (!name) return $("#sm-err").textContent = "Give it a name."; if (!es.length) return closeSheet();
     state.meals = [{name:name.slice(0, 40), items:es.map(cloneEntry)}, ...(state.meals || []).filter(x => x.name !== name)].slice(0, 20); save(); closeSheet(); render(); toast(`Saved "${name}". Find it at the top when you add food.`); },
@@ -3063,6 +3128,7 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ const form = e.target, key = draftKey(form); setTimeout(() => { if (!form.isConnected) draftClear(key); }, 1500); if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (e.target.id === "act-min"){ const est = $("#act-est"); if (est) est.textContent = `About ${actKcal(ACTS_MET[actPick][1], +e.target.value || 0)} kcal for you.`; return; }
   if (e.target.id === "rc-q"){ rcpHits = rcpSearch(e.target.value); const h = $("#rc-hits"); if (h) h.innerHTML = rcpHits.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc(a[1])} · ${a[2]} kcal</small></div><button data-act="rc-add" data-i="${i}">Add</button></div>`).join(""); return; }
   if (e.target.id === "pp-range"){ ppCmp = +e.target.value; const c = e.target.previousElementSibling; if (c) c.style.setProperty("--c", ppCmp + "%"); return; }
   if (e.target.closest && e.target.closest(".ob")){ obStash(); obPersist(); }
