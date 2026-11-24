@@ -342,6 +342,12 @@ nav.tabs [data-tab="progress"]{display:none}
 .lift input{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:7px 9px;font:inherit;font-size:16px;color:var(--ink)}
 .wkrow .hint{display:block;font-size:12px;color:var(--muted);margin-top:4px}
 .wkrow .hint b{color:var(--good);font-weight:600}
+.badges{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.badge{border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:2px;opacity:.55}
+.badge.on{opacity:1;border-color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,var(--surface))}
+.badge i{font-style:normal;font-size:18px;color:var(--accent)}
+.badge b{font-size:13.5px}.badge small{font-size:11.5px;color:var(--muted)}
+.coach{border:1.5px solid var(--scan)}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -418,7 +424,7 @@ function bmiInfo(p, kg){
 function targets(p, kg){
   const ls = typeof state === "object" && state && state.scans ? state.scans[state.scans.length-1] : null;
   const bmr = ls && ls.bmr ? ls.bmr : 10*kg + 6.25*p.height - 5*p.age + (p.sex === "f" ? -161 : 5);
-  const tdee = bmr * p.activity;
+  const tdee = bmr * p.activity + (+p.tdeeAdj || 0);
   const floor = p.sex === "f" ? 1200 : 1500;
   const kcal = Math.max(floor, Math.round((tdee - p.pace*7700/7)/10)*10);
   const pr = Math.round(1.8*kg), fat = Math.round(0.8*kg);
@@ -758,6 +764,7 @@ function noticeHtml(){
 }
 function privacySheet(){ openSheet(`${head("Your data in Contour")}${noticeHtml()}<button class="btn" data-act="privacy-ok">Got it</button>`); }
 function viewHome(){
+  checkBadges();
   const nm = (state.profile.name || pendingName || "").split(" ")[0], hr = new Date().getHours(), hi = hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
   const dateLine = new Date().toLocaleDateString(undefined, {weekday:"long", month:"long", day:"numeric"});
   if (CLOUD && state.demo) return `<div><h1>${hi}${nm ? ", " + esc(nm) : ""}</h1><p class="sub">${dateLine}</p></div>
@@ -785,6 +792,7 @@ function viewHome(){
     <button class="tile" data-act="nav" data-v="focus"><label>Today's workout</label><span class="num" style="font-size:19px">${esc(day.t)}</span><span class="sub">${done ? "Done ✓" : esc(day.s)}</span></button>
     <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
   </div>
+  ${coachCard()}
   ${startCard()}
   ${winsCard()}
   <button class="btn alt" data-act="nav" data-v="reports">See your weekly report</button>`;
@@ -2002,6 +2010,77 @@ function ppManage(){
   openSheet(`${head("Progress photos")}<p class="sub">These live only on this phone. They are not in your export or your cloud backup, so deleting one removes it for good.</p>
     <div class="ppgrid">${(ppList || []).map(x => `<figure><img src="${x.img}" alt="Photo from ${shortD(x.d)}"><figcaption>${shortD(x.d)} <button class="linkbtn" data-act="pp-del" data-id="${esc(x.id)}" style="color:var(--high);font-size:12px">Delete</button></figcaption></figure>`).join("")}</div>`);
 }
+/* ---------- recipe builder: cook once, log a portion with one tap ---------- */
+let rcp = null, rcpHits = [];
+function rcpSearch(q){
+  const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean); if (!toks.length) return [];
+  const pool = [...(state.myFoods || []), ...FOODS, ...(Array.isArray(window.USDA) ? window.USDA : [])], out = [];
+  for (const a of pool){ const n = a[0].toLowerCase(); if (toks.every(t => n.includes(t))) out.push([(n.startsWith(toks[0]) ? 0 : 1) + n.length/400, a]); if (out.length > 400) break; }
+  return out.sort((x, y) => x[0] - y[0]).slice(0, 8).map(x => x[1]);
+}
+const rcpTot = () => rcp.items.reduce((t, x) => ({kcal:t.kcal + x.a[2]*x.q, p:t.p + x.a[3]*x.q, c:t.c + x.a[4]*x.q, f:t.f + x.a[5]*x.q}), {kcal:0, p:0, c:0, f:0});
+function recipeSheet(){
+  if (!rcp) rcp = {name:"", serves:4, items:[]};
+  const T = rcpTot(), per = k => Math.round(T[k]/(rcp.serves || 1)*(k === "kcal" ? 1 : 10))/(k === "kcal" ? 1 : 10);
+  openSheet(`${head("Build a recipe")}<p class="sub">Add everything that goes in the pot, then say how many portions it makes. You log one portion with a tap.</p>
+    <div class="grid2"><label class="f">Recipe name<input id="rc-name" type="text" maxlength="60" value="${esc(rcp.name)}" placeholder="Chicken curry"></label><label class="f">Portions it makes<input id="rc-serves" type="number" inputmode="numeric" min="1" max="50" value="${rcp.serves}"></label></div>
+    <label class="f">Add an ingredient<input id="rc-q" type="search" placeholder="chicken thigh, onion, oil…" autocomplete="off"></label><div id="rc-hits"></div>
+    <div>${rcp.items.length ? rcp.items.map((x, i) => `<div class="entry"><div><b>${esc(x.a[0])}</b><small>${esc(x.a[1])} · ${Math.round(x.a[2]*x.q)} kcal</small></div><div class="step"><button data-act="rc-q" data-i="${i}" data-d="-0.25" aria-label="Less">−</button><span>${x.q}×</span><button data-act="rc-q" data-i="${i}" data-d="0.25" aria-label="More">+</button></div></div>`).join("") : `<p class="sub">No ingredients yet.</p>`}</div>
+    ${rcp.items.length ? `<section class="hero" style="padding:14px"><small>One portion</small><span class="num" style="font-size:32px">${per("kcal")} kcal</span><small>Protein ${per("p")} g · carbs ${per("c")} g · fat ${per("f")} g · whole pot ${Math.round(T.kcal)} kcal</small></section>` : ""}
+    <div class="err" id="rc-err"></div><button class="btn" data-act="rc-save">Save recipe and log a portion</button>
+    ${(state.recipes || []).length ? `<div><h2>Your recipes</h2>${state.recipes.map((r, i) => `<div class="foodrow"><div><b>${esc(r.name)}</b><small>${r.serves} portions · ${Math.round(r.items.reduce((a, x) => a + x.a[2]*x.q, 0)/r.serves)} kcal each</small></div><button data-act="rc-edit" data-i="${i}">Edit</button></div>`).join("")}</div>` : ""}`);
+}
+function rcpStash(){ if (!rcp) return; const n = $("#rc-name"), s2 = $("#rc-serves"); if (n) rcp.name = n.value; if (s2) rcp.serves = Math.max(1, Math.min(50, parseInt(s2.value) || 1)); }
+/* ---------- weekly coach: learns what you really burn from your log and your weight ---------- */
+function coachEstimate(){
+  const days = [...Array(21)].map((_, i) => daysAgo(i + 1)).reverse(), tots = days.map(d => dayTotals(d).kcal).filter(k => k > 800);
+  if (tots.length < 10) return {need:`Log full days of food for ${10 - tots.length} more day${10 - tots.length === 1 ? "" : "s"} and weigh in a few times.`};
+  const w = (state.weights || []).filter(x => x.d >= days[0]); if (w.length < 4) return {need:`Weigh in ${4 - w.length} more time${4 - w.length === 1 ? "" : "s"} over the next week or two.`};
+  const t0 = parseD(w[0].d).getTime(), xs = w.map(x => (parseD(x.d).getTime() - t0)/864e5), ys = w.map(x => x.kg); if (xs[xs.length-1] < 10) return {need:"Keep weighing in. The check-in needs about two weeks of weights."};
+  const n = xs.length, mx = xs.reduce((a, b) => a + b)/n, my = ys.reduce((a, b) => a + b)/n, slope = xs.reduce((a, x, i) => a + (x - mx)*(ys[i] - my), 0)/(xs.reduce((a, x) => a + (x - mx)**2, 0) || 1);
+  const intake = tots.reduce((a, b) => a + b)/tots.length, real = Math.round((intake - slope*7700)/10)*10;
+  const p = state.profile, kg = curKg(), base = targets({...p, tdeeAdj:0}, kg), adj = Math.max(-700, Math.min(700, real - base.tdee));
+  const next = targets({...p, tdeeAdj:adj}, kg);
+  return {intake:Math.round(intake), real, formula:base.tdee, adj, next:next.kcal, cur:targets(p, kg).kcal, perWk:slope*7};
+}
+function coachCard(){
+  if (viewing || state.demo || isTrainer()) return ""; const last = state.coachAt || ""; if (last && last > daysAgo(7)) return "";
+  const E = coachEstimate(); if (E.need) return "";
+  if (Math.abs(E.next - E.cur) < 80){ return ""; }
+  return `<section class="card coach"><div><h2>Weekly check-in</h2><p class="sub">Over the last three weeks you ate about ${E.intake.toLocaleString()} kcal a day and your weight trend went ${E.perWk < -0.05 ? "down" : E.perWk > 0.05 ? "up" : "flat"}${Math.abs(E.perWk) < 0.05 ? "" : ` (${E.perWk < 0 ? "−" : "+"}${showWt(Math.abs(E.perWk))} ${wtU()} a week)`}. That means your body burns about <b>${E.real.toLocaleString()} kcal a day</b>, not the ${E.formula.toLocaleString()} the formula guessed.</p></div>
+    <div class="row between"><span>New daily target</span><span class="num" style="font-size:22px">${E.cur.toLocaleString()} → ${E.next.toLocaleString()}</span></div>
+    <div class="grid2"><button class="btn" data-act="coach-yes" data-adj="${E.adj}">Use ${E.next.toLocaleString()}</button><button class="btn alt" data-act="coach-no">Keep ${E.cur.toLocaleString()}</button></div>
+    <p class="sub" style="font-size:12px">Based on your own log. Missed or partly logged days make it less accurate. It never goes below the safe minimum.</p></section>`;
+}
+/* ---------- badges: earned from real use, never for nothing ---------- */
+const BADGES = [
+  ["first-log","First bite","Log your first food", S => Object.values(S.days).some(x => x && x.length)],
+  ["streak7","One-week streak","Log food 7 days in a row", S => streak() >= 7 || (S.best || {}).streak >= 7],
+  ["streak30","Habit formed","Log food 30 days in a row", S => streak() >= 30 || (S.best || {}).streak >= 30],
+  ["protein7","Protein pro","Hit your protein target 7 days running", S => { const tg = targets(S.profile, curKg()); for (let i = 1; i <= 7; i++) if (dayTotals(daysAgo(i)).p < tg.p*0.9) return false; return true; }],
+  ["work1","First sweat","Finish your first workout", S => Object.keys(S.done).length >= 1],
+  ["work10","Ten sessions","Finish 10 workouts", S => Object.keys(S.done).length >= 10],
+  ["work50","Fifty strong","Finish 50 workouts", S => Object.keys(S.done).length >= 50],
+  ["scan1","Baseline","Take your first body scan", S => S.scans.length >= 1],
+  ["scan3","Tracking","Take 3 body scans", S => S.scans.length >= 3],
+  ["kg2","On the move","Lose 2 kg from your start", S => S.weights.length > 1 && S.weights[0].kg - curKg() >= 2],
+  ["kg5","Five down","Lose 5 kg from your start", S => S.weights.length > 1 && S.weights[0].kg - curKg() >= 5],
+  ["goal","Goal reached","Reach your goal weight", S => S.profile.goalKg && Math.abs(curKg() - S.profile.goalKg) < 0.3 && S.weights.length > 1],
+  ["fast16","16 hours","Finish a 16-hour fast", S => (S.fasts || []).some(x => (x.end - x.start)/36e5 >= 16)],
+  ["pr","Getting stronger","Beat your best on any lift", S => Object.values(S.lifts || {}).some(L => L.length > 1 && L[L.length-1].kg > Math.max(...L.slice(0, -1).map(x => x.kg || 0)))],
+  ["water7","Hydrated","Drink your water goal 7 days running", S => { for (let i = 1; i <= 7; i++) if ((S.water[daysAgo(i)] || 0) < WATER_GOAL) return false; return true; }],
+  ["recipe","Home cook","Save your first recipe", S => (S.recipes || []).length >= 1]
+];
+function checkBadges(){
+  if (viewing || state.demo || isTrainer()) return; const got = state.badges ||= {}; let fresh = null;
+  const sk = streak(); state.best ||= {}; if (sk > (state.best.streak || 0)) state.best.streak = sk;
+  for (const [id, name, , test] of BADGES){ if (got[id]) continue; let ok = false; try { ok = !!test(state); } catch(e){} if (ok){ got[id] = today(); fresh = name; } }
+  if (fresh){ save(); setTimeout(() => toast(`Badge earned: ${fresh}`), 600); }
+}
+function badgesCard(){
+  const got = state.badges || {}, n = BADGES.filter(b => got[b[0]]).length;
+  return `<section class="card"><div class="row between"><h2>Badges</h2><span class="sub">${n} of ${BADGES.length}</span></div><div class="badges">${BADGES.map(([id, name, how]) => `<div class="badge${got[id] ? " on" : ""}" title="${esc(how)}"><i aria-hidden="true">${got[id] ? "★" : "☆"}</i><b>${esc(name)}</b><small>${got[id] ? "Earned " + shortD(got[id]) : esc(how)}</small></div>`).join("")}</div></section>`;
+}
 /* ---------- weekly wins: only goals actually reached ---------- */
 function weeklyWins(n){
   n = n || 7; const dates = [...Array(n)].map((_, i) => daysAgo(n-1-i)), from = dates[0], tg = targets(state.profile, curKg()), tots = dates.map(dayTotals), W = [];
@@ -2498,6 +2577,7 @@ function viewProgress(){
     ${lineChart(w.map(x => ({d:x.d, v:x.kg})), "var(--accent)", wtU(), v => imp() ? v*2.20462 : v)}${trendLine()}
     <form class="row" data-form="weight"><label class="f" style="flex:1">Today’s weight (${wtU()})<input id="w-in" type="number" inputmode="decimal" step="0.1" min="20" max="700" required></label><button class="btn" style="width:auto;align-self:flex-end">Log</button></form></section>
   ${strengthCard()}
+  ${badgesCard()}
   <section class="card"><h2>Body fat</h2>${lineChart(bfp, "var(--scan)", "%", v => v)}</section>
   ${rows ? `<section class="card"><h2>Measurements since first scan</h2><div class="reads">${rows}</div></section>` : ""}
   <section class="card"><div class="row between"><h2>Calories, last 7 days</h2><span class="sub">${avg ? "avg " + avg + " kcal" : "nothing logged"}</span></div>
@@ -2633,6 +2713,7 @@ function foodSheet(meal){
     ${quickBlock(meal)}
     <label class="f">Search ${(FOODS.length + (Array.isArray(window.USDA) ? window.USDA.length : 0) + community.length + products.size).toLocaleString()} foods<input id="food-q" type="search" placeholder="roti, chicken breast, oatmeal…" autocomplete="off" style="font-size:16px"></label>
     <div class="list" id="food-list">${foodList("")}</div>
+    <button class="btn alt" data-act="rc-open">Build a recipe</button>
     <details><summary style="cursor:pointer;font-weight:600">Create a food</summary>
       <form data-form="manual" style="display:flex;flex-direction:column;gap:10px;margin-top:10px">
         <div class="grid2"><label class="f">Name<input id="m-name" type="text" required minlength="2" maxlength="60" style="font-size:16px"></label><label class="f">Serving<input id="m-serv" type="text" maxlength="40" placeholder="1 bowl (250 g)" style="font-size:16px"></label></div>
@@ -2736,6 +2817,19 @@ const actions = {
   "scan-torch"(el){ const t = scanStream && scanStream.getVideoTracks()[0]; if (!t) return; const on = el.getAttribute("aria-pressed") !== "true"; t.applyConstraints({advanced:[{torch:on}]}).then(() => el.setAttribute("aria-pressed", on)).catch(() => {}); },
   "draft-discard"(el){ const f = el.closest("form[data-form]"); if (!f) return; draftClear(draftKey(f)); f.reset(); f.querySelectorAll("[data-act][aria-pressed]").forEach((b, i, a) => b.setAttribute("aria-pressed", b === a[0])); const n = f.querySelector(".draftnote"); if (n) n.remove(); },
   "pp-add"(el){ photoPicker(el.dataset.code); },
+  "rc-open"(){ rcp = null; recipeSheet(); },
+  "rc-edit"(el){ const r = state.recipes[+el.dataset.i]; if (!r) return; rcp = JSON.parse(JSON.stringify(r)); rcp.edit = +el.dataset.i; recipeSheet(); },
+  "rc-add"(el){ rcpStash(); const a = rcpHits[+el.dataset.i]; if (!a) return; rcp.items.push({a:[...a], q:1}); recipeSheet(); const q = $("#rc-q"); if (q) q.focus(); },
+  "rc-q"(el){ rcpStash(); const x = rcp.items[+el.dataset.i]; if (!x) return; x.q = Math.round((x.q + +el.dataset.d)*100)/100; if (x.q <= 0) rcp.items.splice(+el.dataset.i, 1); recipeSheet(); },
+  "rc-save"(){ rcpStash(); const err = $("#rc-err"), name = (rcp.name || "").trim();
+    if (name.length < 2) return err.textContent = "Give the recipe a name."; if (!rcp.items.length) return err.textContent = "Add at least one ingredient.";
+    const T = rcpTot(), n = rcp.serves, a = [name.slice(0, 60), `1 portion (of ${n})`, Math.round(T.kcal/n), r1(T.p/n), r1(T.c/n), r1(T.f/n)];
+    const rec = {name:a[0], serves:n, items:rcp.items.map(x => ({a:x.a, q:x.q}))}; state.recipes ||= [];
+    if (rcp.edit != null && state.recipes[rcp.edit]){ const old = state.recipes[rcp.edit].name; state.recipes[rcp.edit] = rec; state.myFoods = (state.myFoods || []).filter(f => f[0] !== old); } else state.recipes.push(rec);
+    state.myFoods = [...(state.myFoods || []).filter(f => f[0] !== a[0]), a];
+    const m = sheetMeal || "Dinner"; rcp = null; closeSheet(); addMany([{name:a[0], serv:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], qty:1}], m, `Saved ${a[0]} and logged a portion`); },
+  "coach-yes"(el){ state.profile.tdeeAdj = Math.max(-700, Math.min(700, +el.dataset.adj || 0)); state.coachAt = today(); save(); render(); toast("New target set. The check-in looks again next week."); },
+  "coach-no"(){ state.coachAt = today(); save(); render(); },
   quick(el){ const e = lastQuick[+el.dataset.i]; if (!e) return; const m = sheetMeal; closeSheet(); addMany([e], m, `Added ${e.name} to ${m.toLowerCase()}`); },
   "meal-add"(el){ const M = (state.meals || [])[+el.dataset.i]; if (!M) return; const m = sheetMeal; closeSheet(); addMany(M.items, m, `Added ${M.name} to ${m.toLowerCase()}`); },
   "meal-copy"(el){ const m = el.dataset.meal, y = (state.days[ymd(new Date(parseD(vd()).getTime() - 864e5))] || []).filter(e => e.meal === m); if (y.length) addMany(y, m, `Copied yesterday's ${m.toLowerCase()}`); },
@@ -2918,7 +3012,7 @@ const forms = {
     const p = {name:($("#p-name").value || "").trim().slice(0,30), sex:$("#p-sex").value, age:Math.round(age), height:r1(h), activity:+$("#p-act").value, pace:+$("#p-pace").value, units:state.profile.units, equip:state.profile.equip, bmiScale:$("#p-bmi").value, goalKg:(g => g != null && toKg(g) >= 30 && toKg(g) <= 300 ? r1(toKg(g)) : null)(num("p-goal"))};
     p.health = readHealth(); p.setup = 1; p.goal = p.pace > 0 ? "lose" : p.pace < 0 ? "gain" : (state.profile.goal === "health" ? "health" : "tone");
     if (state.demo){ state = freshState(p); state.weights.push({d:today(), kg:r1(kg)}); if (pendingAck) state.privacyOk = 1; }
-    else { state.profile = p; logWeight(kg); }
+    else { const o = state.profile, keep = o.tdeeAdj != null && p.activity === o.activity; state.profile = p; if (keep) p.tdeeAdj = o.tdeeAdj; logWeight(kg); }
     save(); closeSheet(); render();
   },
   scan(){
@@ -2969,6 +3063,7 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ const form = e.target, key = draftKey(form); setTimeout(() => { if (!form.isConnected) draftClear(key); }, 1500); if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (e.target.id === "rc-q"){ rcpHits = rcpSearch(e.target.value); const h = $("#rc-hits"); if (h) h.innerHTML = rcpHits.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc(a[1])} · ${a[2]} kcal</small></div><button data-act="rc-add" data-i="${i}">Add</button></div>`).join(""); return; }
   if (e.target.id === "pp-range"){ ppCmp = +e.target.value; const c = e.target.previousElementSibling; if (c) c.style.setProperty("--c", ppCmp + "%"); return; }
   if (e.target.closest && e.target.closest(".ob")){ obStash(); obPersist(); }
   { const f = e.target.closest && e.target.closest("form[data-form]"); if (f && !NO_DRAFT.has(f.dataset.form)){ clearTimeout(draftT); draftT = setTimeout(() => draftSave(f), 250); } }
