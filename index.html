@@ -299,6 +299,7 @@ nav.tabs [data-tab="progress"]{display:none}
 .tour-tip p{margin:0;font-size:14px;line-height:1.45;color:var(--muted)}
 #toast{position:absolute;left:16px;right:16px;bottom:86px;background:var(--ink);color:var(--bg);border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;font-weight:500;opacity:0;transform:translateY(10px);transition:.2s;pointer-events:none;z-index:8}
 #toast.on{opacity:1;transform:none;pointer-events:auto}
+#app:has(#sheet.open) #toast{bottom:auto;top:14px}
 #toast .linkbtn{color:var(--accent);font-size:14px}
 .example{opacity:.55;border:1.5px dashed var(--line);background:transparent;position:relative}
 .example .extag{position:absolute;top:10px;right:12px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
@@ -350,6 +351,8 @@ nav.tabs [data-tab="progress"]{display:none}
 .coach{border:1.5px solid var(--scan)}
 .insight{border-left:3px solid var(--scan);padding:2px 0 2px 10px;margin-top:8px}
 .insight b{font-size:13px}.insight p{margin:2px 0 0;font-size:13.5px;color:var(--muted);line-height:1.45}
+.npphoto{display:flex;flex-direction:column;gap:8px}
+.pedose{display:block;margin-top:4px;width:120px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:16px;color:var(--ink)}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -967,6 +970,10 @@ function viewScan(){
 }
 
 function buildWeek(){
+  if (Array.isArray(state.myPlan) && state.myPlan.length === 7) return state.myPlan.map(d => ({t:String(d.t || "Day"), s:String(d.s || ""), ex:(d.ex || []).filter(x => typeof x === "string")}));
+  return autoWeek();
+}
+function autoWeek(){
   const eq = state.profile.equip, foc = state.focus.length ? state.focus : ["belly"];
   const per = foc.length === 1 ? 4 : foc.length === 2 ? 2 : 2;
   const pickEx = (from, to) => foc.flatMap(k => REGIONS[k][eq].slice(from, to).map(x => x + "|" + REGIONS[k].label));
@@ -1005,6 +1012,7 @@ function viewFocus(){
     <button class="btn ${state.done[today()] || week[ti].ex.length ? "alt" : ""}" data-act="done">${state.done[today()] ? "Undo today’s session" : week[ti].ex.length ? "Mark done without the guide" : `Mark today done: ${week[ti].t}`}</button>
   </section>
   <section class="card">${week.map((dy,i) => `<details class="day${i===ti?" now":""}"${i===ti?" open":""}><summary><span class="dw">${DOW[i]}</span><span><b>${dy.t}</b><br><small>${esc(dy.s)}</small></span><small>${dy.ex.length ? dy.ex.length + (dy.ex.length>1?" moves":" block") : ""}</small></summary>${dy.ex.map(exRow).join("")}</details>`).join("")}</section>
+  ${viewing ? "" : `<div class="row" style="justify-content:center;gap:16px"><button class="linkbtn" data-act="pe-open" style="color:var(--scan);font-size:13.5px">${state.myPlan ? "Edit my week" : "Make this week my own"}</button>${state.myPlan ? `<span class="sub" style="font-size:12px">Your own plan</span>` : ""}</div>`}
   ${trainerExCard()}
   ${library()}`;
 }
@@ -1149,7 +1157,7 @@ const offline = () => navigator.onLine === false;
 function cloudAuthInit(){
   if (cloudReady) return Promise.resolve();
   cloudReady = true; access = "checking";
-  try { firebase.initializeApp(window.PIXORA_CLOUD); fdb = firebase.firestore(); fdb.enablePersistence({synchronizeTabs:true}).catch(() => {}); }
+  try { firebase.initializeApp(window.PIXORA_CLOUD); fdb = firebase.firestore(); const EM = window.PIXORA_CLOUD.emulator; if (EM){ fdb.useEmulator("127.0.0.1", EM.fs); firebase.auth().useEmulator("http://127.0.0.1:" + EM.auth, {disableWarnings:true}); } fdb.enablePersistence({synchronizeTabs:true}).catch(() => {}); }
   catch(e){ access = "open"; setSync("Cloud unavailable, saved on this device"); return Promise.resolve(); }
   return new Promise(res => { let first = true;
     firebase.auth().onAuthStateChanged(async u => {
@@ -2136,6 +2144,28 @@ function insightsCard(){
   const I = insights();
   return `<section class="card"><h2>Patterns</h2>${I.length ? I.map(([t, x]) => `<div class="insight"><b>${t}</b><p>${esc(x)}</p></div>`).join("") : `<p class="sub">Patterns appear after a couple of weeks of logging food, sleep and energy. Each one only shows when your own data backs it up.</p>`}</section>`;
 }
+/* ---------- plan editor: make the week your own, or go back to the automatic plan ---------- */
+let pe = null, peDay = 0, peHits = [];
+function peSearch(q){
+  const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean); if (!toks.length) return [];
+  const out = [], seen = new Set(), push = (n, dose, cue, src) => { const k = n.toLowerCase(); if (seen.has(k) || !toks.every(t => k.includes(t))) return; seen.add(k); out.push({n, dose, cue, src}); };
+  for (const x of texVisible ? texVisible() : []) push(x.name, x.d.sets && x.d.reps ? `${x.d.sets}×${x.d.reps}` : "3×10", (x.d.cues || "").split("\n")[0], "By " + x.authorName.split(" ")[0]);
+  for (const k of Object.keys(REGIONS)) for (const eq of ["home", "gym"]) for (const s2 of REGIONS[k][eq]){ const [n, dose, cue] = s2.split("|"); push(n, dose, cue, REGIONS[k].label); }
+  for (const x of (Array.isArray(window.EXDB) ? window.EXDB : [])){ if (out.length > 30) break; push(x[0], "3×10", "", (REGIONS[x[1]] || {label:""}).label); }
+  return out.slice(0, 10);
+}
+function peSheet(){
+  const wd = weekDates(), dn = d => parseD(d).toLocaleDateString(undefined, {weekday:"short"}), D = pe[peDay];
+  openSheet(`${head("Edit my week")}<p class="sub">Change any day: rename it, set sets and reps, add moves from the library or your trainer, or make it a rest day.</p>
+    <div class="chips">${pe.map((d, i) => `<button class="chip${i === peDay ? " on" : ""}" data-act="pe-day" data-i="${i}">${dn(wd[i])} · ${esc(d.t)}</button>`).join("")}</div>
+    <div class="grid2"><label class="f">Name of the day<input id="pe-t" type="text" maxlength="30" value="${esc(D.t)}"></label><label class="f">Note<input id="pe-s" type="text" maxlength="60" value="${esc(D.s || "")}"></label></div>
+    <div>${D.ex.length ? D.ex.map((x, i) => { const [n, dose] = x.split("|"); return `<div class="entry"><div style="flex:1"><b>${esc(n)}</b><input class="pedose" data-pdi="${i}" type="text" maxlength="24" value="${esc(dose || "")}" aria-label="Sets and reps for ${esc(n)}"></div><div class="step"><button data-act="pe-mv" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button data-act="pe-rm" data-i="${i}" aria-label="Remove ${esc(n)}">×</button></div></div>`; }).join("") : `<p class="sub">Rest day. Add a move to turn it into a workout.</p>`}</div>
+    <label class="f">Add a move<input id="pe-q" type="search" placeholder="squat, plank, row…" autocomplete="off"></label><div id="pe-hits"></div>
+    <div class="grid2">${D.ex.length ? `<button class="btn alt" data-act="pe-rest">Make it a rest day</button>` : `<span></span>`}<button class="btn" data-act="pe-save">Save my week</button></div>
+    ${state.myPlan ? `<button class="linkbtn" data-act="pe-auto" style="color:var(--muted);font-size:13px;align-self:flex-start">Go back to the automatic plan</button>` : ""}`);
+}
+function peStash(){ if (!pe) return; const D = pe[peDay], t = $("#pe-t"), s2 = $("#pe-s"); if (t) D.t = t.value.trim() || D.t; if (s2) D.s = s2.value;
+  document.querySelectorAll("[data-pdi]").forEach(el => { const i = +el.dataset.pdi, p = (D.ex[i] || "").split("|"); if (p[0]){ p[1] = el.value.trim(); D.ex[i] = p.join("|"); } }); }
 /* ---------- weekly wins: only goals actually reached ---------- */
 function weeklyWins(n){
   n = n || 7; const dates = [...Array(n)].map((_, i) => daysAgo(n-1-i)), from = dates[0], tg = targets(state.profile, curKg()), tots = dates.map(dayTotals), W = [];
@@ -2318,12 +2348,12 @@ async function cloudDeleteAccount(){
   try {
     await Promise.all([each(fdb.collection(`${APP}/users/${uid}/months`)), each(fdb.collection(`${APP}/grants`).where("member", "==", uid)), each(fdb.collection(`${APP}/grants`).where("trainer", "==", uid)),
       each(fdb.collection(`${APP}/foods`).where("by", "==", uid)), each(fdb.collection(`${APP}/exercises`).where("by", "==", uid))]);
-    await fdb.doc(`${APP}/users/${uid}`).delete();
+    // Keep only the wrapped key, so the same Pixora passcode still unlocks Contour here and on other phones.
+    if (vkeys && vkeys.kw) await fdb.doc(`${APP}/users/${uid}`).set({kw:vkeys.kw}); else await fdb.doc(`${APP}/users/${uid}`).delete();
     // The Pixora account itself stays. Only Contour's parts of the shared records are cleared.
     await fdb.doc("users/" + uid).set({apps:{contour:false}, contourHealth:null, contourHealthE:null}, {merge:true}).catch(() => {});
     if (email) await fdb.doc("directory/" + email).set({uid, name:"", trainer:false}).catch(() => {});
     try { localStorage.removeItem(LOCAL_KEY + ":" + uid); } catch(e){}
-    ContourVault.forget(uid).catch(() => {}); vkeys = null;
     closeSheet(); monthSig = {}; lastDir = ""; clients = []; texAll = new Map(); state = demoState(); ob = null; tab = "home";
     render(); await cloudEnter(u); render(); toast("Your Contour data is deleted. Your Pixora login still works.");
   } catch(e){ btn.disabled = false; btn.textContent = "Delete my Contour data"; err.textContent = "Some of your data could not be removed. Check your connection and try again."; }
@@ -2879,6 +2909,14 @@ const actions = {
   "act-del"(el){ const L = (state.acts || {})[vd()] || [], i = L.findIndex(x => x.id === el.dataset.id); if (i < 0) return; const [x] = L.splice(i, 1); save(); render(); toast(`Removed ${x.name}`, () => { L.splice(i, 0, x); save(); render(); }); },
   ck(el){ const c = ((state.check ||= {})[today()] ||= {}); c[el.dataset.k] = +el.dataset.v; save(); render(); if (c.sleep != null && c.energy != null) toast("Checked in. Thanks."); },
   "ck-skip"(){ const c = ((state.check ||= {})[today()] ||= {}); if (c.sleep == null) c.sleep = null; c.energy = c.energy || 0; c.skip = 1; save(); render(); },
+  "pe-open"(){ pe = JSON.parse(JSON.stringify(buildWeek())); peDay = Math.max(0, weekDates().indexOf(today())); peSheet(); },
+  "pe-day"(el){ peStash(); peDay = +el.dataset.i; peSheet(); },
+  "pe-rm"(el){ peStash(); pe[peDay].ex.splice(+el.dataset.i, 1); peSheet(); },
+  "pe-mv"(el){ peStash(); const i = +el.dataset.i, E = pe[peDay].ex; if (i > 0){ [E[i-1], E[i]] = [E[i], E[i-1]]; } peSheet(); },
+  "pe-add"(el){ peStash(); const h = peHits[+el.dataset.i]; if (!h) return; pe[peDay].ex.push(`${h.n}|${h.dose || "3×10"}|${h.cue || ""}|${h.src || ""}`); if (/^rest$/i.test(pe[peDay].t)) pe[peDay].t = "Workout"; peSheet(); },
+  "pe-rest"(){ peStash(); pe[peDay] = {t:"Rest", s:"Recover, sleep, stretch", ex:[]}; peSheet(); },
+  "pe-save"(){ peStash(); state.myPlan = pe; pe = null; save(); closeSheet(); render(); toast("Your week is saved."); },
+  "pe-auto"(){ delete state.myPlan; pe = null; save(); closeSheet(); render(); toast("Back to the automatic plan."); },
   "rc-open"(){ rcp = null; recipeSheet(); },
   "rc-edit"(el){ const r = state.recipes[+el.dataset.i]; if (!r) return; rcp = JSON.parse(JSON.stringify(r)); rcp.edit = +el.dataset.i; recipeSheet(); },
   "rc-add"(el){ rcpStash(); const a = rcpHits[+el.dataset.i]; if (!a) return; rcp.items.push({a:[...a], q:1}); recipeSheet(); const q = $("#rc-q"); if (q) q.focus(); },
@@ -3128,6 +3166,7 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ const form = e.target, key = draftKey(form); setTimeout(() => { if (!form.isConnected) draftClear(key); }, 1500); if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (e.target.id === "pe-q"){ peHits = peSearch(e.target.value); const h = $("#pe-hits"); if (h) h.innerHTML = peHits.map((x, i) => `<div class="foodrow"><div><b>${esc(x.n)}</b><small>${esc(x.dose || "")}${x.src ? " · " + esc(x.src) : ""}</small></div><button data-act="pe-add" data-i="${i}">Add</button></div>`).join(""); return; }
   if (e.target.id === "act-min"){ const est = $("#act-est"); if (est) est.textContent = `About ${actKcal(ACTS_MET[actPick][1], +e.target.value || 0)} kcal for you.`; return; }
   if (e.target.id === "rc-q"){ rcpHits = rcpSearch(e.target.value); const h = $("#rc-hits"); if (h) h.innerHTML = rcpHits.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc(a[1])} · ${a[2]} kcal</small></div><button data-act="rc-add" data-i="${i}">Add</button></div>`).join(""); return; }
   if (e.target.id === "pp-range"){ ppCmp = +e.target.value; const c = e.target.previousElementSibling; if (c) c.style.setProperty("--c", ppCmp + "%"); return; }
