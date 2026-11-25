@@ -93,12 +93,13 @@ async function pxKek(masterRaw){
 /* The Pixora master record {v,id,salt,iter,iv,ct} -> Contour's key. Throws on a wrong passcode. */
 async function pxOpen(pass,mk){
   var k=await kekFrom(pass,unb64(mk.salt),Math.min(Math.max(+mk.iter||ITER,100000),2000000));
-  var m=unb64(JSON.parse(dec.decode(await openBytes(k,mk))).m),kk=await pxKek(m);m.fill(0);return kk;
+  var m=unb64(JSON.parse(dec.decode(await openBytes(k,mk))).m),kk=await pxKek(m);if(root.PixoraPin)await PixoraPin.remember(m,mk.id);m.fill(0);return kk;
 }
 /* A brand-new Pixora passcode (no master yet, or starting over): returns {mk, kek}. mk goes to apps/pixora/users/<uid>. */
 async function pxNew(pass){
-  var m=rnd(32),salt=rnd(16),box=await sealJSON(await kekFrom(pass,salt,ITER),{m:b64(m)}),kk=await pxKek(m);m.fill(0);
-  return {mk:{v:1,id:kid(),salt:b64(salt),iter:ITER,iv:box.iv,ct:box.ct},kek:kk};
+  var m=rnd(32),salt=rnd(16),box=await sealJSON(await kekFrom(pass,salt,ITER),{m:b64(m)}),kk=await pxKek(m),mk={v:1,id:kid(),salt:b64(salt),iter:ITER,iv:box.iv,ct:box.ct};
+  if(/^\d{4}$/.test(pass))mk.fmt="pin4";if(root.PixoraPin)await PixoraPin.remember(m,mk.id);m.fill(0);
+  return {mk:mk,kek:kk};
 }
 /* First phone, Pixora passcode: make every key, wrapped with Contour's Pixora key. */
 async function createPx(kek,mid){
