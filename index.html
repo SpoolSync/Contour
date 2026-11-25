@@ -378,6 +378,17 @@ nav.tabs [data-tab="progress"]{display:none}
 .chatin{display:flex;gap:8px;align-items:flex-end}
 .chatin textarea{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:16px;color:var(--ink);resize:none}
 .banner .bacts{display:flex;gap:6px;flex-wrap:wrap}
+.vbar{background:var(--ink);color:var(--bg);border-radius:var(--r);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.vbar .top{display:flex;align-items:center;gap:10px}
+.vbar .top b{flex:1;font-size:15px}.vbar .top small{display:block;font-size:11.5px;opacity:.7;font-weight:400}
+.vbar .back{background:transparent;color:var(--bg);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:6px 12px;font-weight:600;font-size:13px}
+.vbar .acts{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.vbar .acts button{background:rgba(255,255,255,.12);color:var(--bg);border:0;border-radius:10px;padding:8px 4px;font-weight:600;font-size:13px}
+.vbar .acts button.hot{background:var(--accent);color:var(--accent-ink)}
+#app.ro nav.tabs [data-tab="check"]{display:none}
+#app.ro nav.tabs{grid-template-columns:repeat(4,1fr)}
+.pick{display:flex;flex-direction:column;gap:10px}
+.pick .opt small.st{color:var(--good);font-weight:600}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -774,7 +785,9 @@ const myShape = () => state.demo && !state.scans.length ? null : shapeOf(state.s
 let tab = "today", scanning = false;
 const TABS = ["texs","home","today","scan","focus","progress","reports","check","clients"];
 function banner(){
-  if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><div class="bacts">${CLOUD && viewing.cid ? `<button data-act="co-plan" data-cid="${esc(viewing.cid)}">Plan</button><button data-act="co-chat" data-cid="${esc(viewing.cid)}">Message</button><button data-act="co-notes" data-cid="${esc(viewing.cid)}">Notes</button>` : ""}<button data-act="client-exit">Back</button></div></div>`;
+  if (viewing){ const S2 = viewing.cid ? clientSum[viewing.cid] || {} : {};
+    return `<div class="vbar"><div class="top"><button class="back" data-act="client-exit" aria-label="Back to clients">‹ Clients</button><b>${esc(viewing.name)}<small>Read-only · updated ${shortD(ymd(new Date(viewing.at)))}</small></b></div>
+    ${CLOUD && viewing.cid ? `<div class="acts"><button class="hot" data-act="co-plan" data-cid="${esc(viewing.cid)}">${S2.plan ? "Update plan" : "Send a plan"}</button><button data-act="co-chat" data-cid="${esc(viewing.cid)}">Message${S2.un ? " · " + S2.un : ""}</button><button data-act="co-notes" data-cid="${esc(viewing.cid)}">Notes</button></div>` : ""}</div>`; }
   return "";
 }
 function dayTotals(d){ const t = {kcal:0,p:0,c:0,f:0}; for (const e of (state.days[d]||[])){ t.kcal += e.kcal*e.qty; t.p += e.p*e.qty; t.c += e.c*e.qty; t.f += e.f*e.qty; } return t; }
@@ -1558,7 +1571,7 @@ async function cloudOpenClient(cid){
   } catch(e){ why = e && e.code === "nokey" ? "nokey" : ""; snap = null; }
   if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : why === "nokey" ? `${c.name}'s data is encrypted and their key for you hasn't arrived yet. Ask them to open Contour once.` : `${c.name}'s profile could not be opened. They may have stopped sharing, or not synced yet.`; return render(); }
   delete snap._sig; delete snap.share; delete snap.profile.role; snap.profile.units = state.profile.units; clientMsg = "";
-  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now(), cid}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
+  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now(), cid}; setSync("Viewing"); viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
 }
 function cloudShareBox(){
   if (state.demo || isTrainer() || !cuser) return "";
@@ -2211,7 +2224,9 @@ function peSheet(){
     <div class="grid2">${D.ex.length ? `<button class="btn alt" data-act="pe-rest">Make it a rest day</button>` : `<span></span>`}<button class="btn" data-act="pe-save">Save my week</button></div>
     <details><summary style="cursor:pointer;font-weight:600;font-size:14px">Add your own move</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><div class="grid2"><label class="f">Name<input id="pe-cn" type="text" maxlength="60" placeholder="Sled push"></label><label class="f">Sets and reps<input id="pe-cd" type="text" maxlength="24" placeholder="4×20 m"></label></div><label class="f">Cue (optional)<input id="pe-cc" type="text" maxlength="120" placeholder="Low hips, drive through the legs"></label><button class="btn alt" data-act="pe-custom">Add move</button></div></details>
     ${peMode === "coach" ? "" : state.myPlan ? `<button class="linkbtn" data-act="pe-auto" style="color:var(--muted);font-size:13px;align-self:flex-start">Go back to the automatic plan</button>` : ""}`);
-  if (peMode === "coach"){ const b = document.querySelector("[data-act=pe-save]"); if (b) b.textContent = "Back to the plan"; const h = $("#panel h2"); if (h) h.textContent = "Week for " + firstN(cdraft.name); }
+  if (peMode === "coach"){ const b = document.querySelector("[data-act=pe-save]"); if (b){ b.textContent = "Send week to " + firstN(cdraft.name); b.insertAdjacentHTML("beforebegin", ""); b.parentNode.insertAdjacentHTML("beforebegin", `<div class="err" id="pe-err"></div>`); } const h = $("#panel h2"); if (h) h.textContent = "Workout plan for " + firstN(cdraft.name);
+    const sub = $("#panel p.sub"); if (sub) sub.innerHTML = `<button class="linkbtn" data-act="co-plan-back" style="color:var(--scan);font-size:13px">‹ Food or workouts</button> Set each day: add moves from the library, your exercises or your own, set sets and reps, or make it a rest day.`;
+    if (cdraft.week){ const g = document.querySelector("[data-act=pe-rest]"); if (g) g.parentNode.insertAdjacentHTML("afterend", `<button class="linkbtn" data-act="co-week-clear" style="color:var(--muted);font-size:13px;align-self:flex-start">Remove the workout plan</button>`); } }
 }
 function peStash(){ if (!pe) return; const D = pe[peDay], t = $("#pe-t"), s2 = $("#pe-s"); if (t) D.t = t.value.trim() || D.t; if (s2) D.s = s2.value;
   document.querySelectorAll("[data-pdi]").forEach(el => { const i = +el.dataset.pdi, p = (D.ex[i] || "").split("|"); if (p[0]){ p[1] = el.value.trim(); D.ex[i] = p.join("|"); } }); }
@@ -2371,7 +2386,7 @@ function clientCard(c){
   const S = clientSum[c.cid] || {}, days = S.lastLog ? Math.round((Date.now() - parseD(S.lastLog).getTime())/864e5) : null, att = S.err ? "" : (days == null || days >= 3 ? `Hasn't logged food ${days == null ? "yet" : `in ${days} days`}` : S.logged <= 3 ? "Logging is patchy this week" : "");
   if (!S.t || S.loading) loadClientSum(c);
   const note = ((ownState || state).tnotes || {})[c.cid];
-  return `<div class="ccard${att ? " att" : ""}"><button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span class="av" aria-hidden="true">${esc((c.name || "M")[0])}</span><span><b>${esc(c.name)}</b><small>${S.loading || !S.t ? "Loading…" : S.err ? "Couldn't load. Open to retry." : `${S.logged}/7 days logged · ${S.work} workout${S.work === 1 ? "" : "s"}${S.dkg != null ? ` · ${S.dkg <= 0 ? "−" : "+"}${showWt(Math.abs(S.dkg))} ${wtU()} in 2 wks` : ""}`}</small>${att ? `<small class="warn">${att}</small>` : ""}${note ? `<small class="cnote">${esc(note.slice(0, 80))}</small>` : ""}</span><small>Open</small></button>
+  return `<div class="ccard${att ? " att" : ""}"><button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span class="av" aria-hidden="true">${esc((c.name || "M")[0])}</span><span><b>${esc(c.name)}</b><small>${S.loading || !S.t ? "Loading…" : S.err ? "Couldn't load. Open to retry." : `${S.logged}/7 days logged · ${S.work} workout${S.work === 1 ? "" : "s"}${S.dkg != null ? ` · ${S.dkg <= 0 ? "−" : "+"}${showWt(Math.abs(S.dkg))} ${wtU()} in 2 wks` : ""}`}</small>${att ? `<small class="warn">${att}</small>` : ""}${note ? `<small class="cnote">${esc(note.slice(0, 80))}</small>` : ""}</span><small style="color:var(--scan);font-weight:600">View day ›</small></button>
     <div class="cacts"><button class="pillbtn alt" data-act="co-chat" data-cid="${esc(c.cid)}">Message${S.un ? ` · ${S.un}` : ""}</button><button class="pillbtn alt" data-act="co-plan" data-cid="${esc(c.cid)}">${S.plan ? "Edit plan" : "Send a plan"}</button><button class="pillbtn alt" data-act="co-notes" data-cid="${esc(c.cid)}">Notes</button>
     ${S.plan ? `<small class="sub">${S.planUsed === S.plan ? "Plan in use" : "Plan sent, not started"}</small>` : ""}</div></div>`;
 }
@@ -2382,15 +2397,23 @@ async function planSheetOpen(cid){
     let S = viewing && viewing.cid === cid ? state : null; if (!S) S = await cloudLoad(cid, key);
     const ow = state; let tg = null, wk = null; try { state = S; tg = targets(S.profile, curKg()); wk = JSON.parse(JSON.stringify(buildWeek())); } finally { state = ow; }
     cdraft = P ? {...P, cid} : {cid, title:"", note:"", targets:{kcal:tg.kcal, p:tg.p, c:tg.c, f:tg.f}, meals:{}, mealNotes:{}, week:null};
-    cdraft.suggest = tg; cdraft.baseWeek = wk; cdraft.name = c.name; planSheet();
+    cdraft.suggest = tg; cdraft.baseWeek = wk; cdraft.name = c.name; cdraft.sentAt = d.exists ? d.data().at : null; pickSheet();
   } catch(e){ toast(e && e.code === "nokey" ? `${c.name}'s key hasn't arrived yet. Ask them to open Contour once.` : "Couldn't open this client right now."); }
+}
+function pickSheet(){
+  const D = cdraft, S = clientSum[D.cid] || {}, used = S.planUsed && S.planUsed === D.sentAt, f = !!(D.targets && D.targets.kcal) || Object.values(D.meals || {}).some(L => (L || []).length), w = !!D.week;
+  const st = on => !D.sentAt || !on ? "" : `<small class="st">Sent ${new Date(D.sentAt).toLocaleDateString(undefined, {month:"short", day:"numeric"})}${used ? " · in use" : " · not started yet"}</small>`;
+  openSheet(`${head("Plan for " + esc(firstN(D.name)))}<p class="sub">Pick what to send. Each part goes on its own, and sending one keeps the other as it is.</p>
+    <div class="pick"><button class="opt" data-act="co-pick" data-v="food"><b>Food plan</b><small>Daily calories and protein, and what to eat at each meal. ${esc(firstN(D.name))} can log a planned meal with one tap.</small>${st(f)}</button>
+    <button class="opt" data-act="co-pick" data-v="work"><b>Workout plan</b><small>A week of workouts from the exercise library, your own exercises or custom moves, with sets and reps.</small>${st(w)}</button></div>
+    <p class="sub" style="font-size:12px">${esc(firstN(D.name))} gets a note on Home and chooses to start it. To talk it through, use Message.</p>`);
 }
 function cStash(){ if (!cdraft) return; const v = id => ($("#" + id) || {}).value; if (v("cp-title") != null) cdraft.title = v("cp-title").trim().slice(0, 60); if (v("cp-note") != null) cdraft.note = v("cp-note").slice(0, 1500);
   for (const k of ["kcal","p","c","f"]){ const x = v("cp-" + k); if (x != null) cdraft.targets[k] = x === "" ? null : Math.max(0, Math.min(k === "kcal" ? 6000 : 600, Math.round(+x))); }
   if (v("cp-mnote") != null) (cdraft.mealNotes ||= {})[cMeal] = v("cp-mnote").slice(0, 200); }
 function planSheet(){
   const D = cdraft, T = D.targets || {}, L = (D.meals || {})[cMeal] || [], tot = m => Math.round(((D.meals || {})[m] || []).reduce((a, e) => a + e.kcal*(e.qty || 1), 0));
-  openSheet(`${head("Plan for " + esc(firstN(D.name)))}<p class="sub">${esc(firstN(D.name))} gets this in their Plan tab and chooses to use it. Everything is encrypted for them.</p>
+  openSheet(`${head("Food plan for " + esc(firstN(D.name)))}<button class="linkbtn" data-act="co-plan-back" style="color:var(--scan);font-size:13px;align-self:flex-start">‹ Food or workouts</button>
     <label class="f">Title<input id="cp-title" type="text" maxlength="60" value="${esc(D.title || "")}" placeholder="Weeks 1–4: build the habit"></label>
     <label class="f">Note to ${esc(firstN(D.name))}<textarea id="cp-note" rows="3" maxlength="1500" placeholder="What to focus on this block, and why.">${esc(D.note || "")}</textarea></label>
     <h2>Daily targets</h2><p class="sub" style="margin-top:-6px">Their own numbers now: ${D.suggest.kcal} kcal, ${D.suggest.p} g protein. Leave calories blank to keep their own.</p>
@@ -2400,17 +2423,18 @@ function planSheet(){
     <div>${L.length ? L.map((e, i) => `<div class="entry"><div><b>${esc(e.name)}</b><small>${esc(e.serv || "")} · ${Math.round(e.kcal*(e.qty || 1))} kcal</small></div><div class="step"><button data-act="co-mq" data-i="${i}" data-d="-0.5" aria-label="Less">−</button><span>${e.qty || 1}×</span><button data-act="co-mq" data-i="${i}" data-d="0.5" aria-label="More">+</button></div></div>`).join("") : `<p class="sub">No foods for ${cMeal.toLowerCase()} yet.</p>`}</div>
     <label class="f">Add a food to ${cMeal.toLowerCase()}<input id="cp-q" type="search" placeholder="eggs, oats, chicken…" autocomplete="off"></label><div id="cp-hits"></div>
     <label class="f">Note for ${cMeal.toLowerCase()} (optional)<input id="cp-mnote" type="text" maxlength="200" value="${esc((D.mealNotes || {})[cMeal] || "")}" placeholder="Swap rice for potatoes any day"></label>
-    <h2>Workouts</h2><p class="sub" style="margin-top:-6px">${D.week ? D.week.map(d => esc(d.t)).join(" · ") : "Not set. They keep their current week."}</p>
-    <div class="grid2"><button class="btn alt" data-act="co-week">${D.week ? "Edit the week" : "Set their week"}</button>${D.week ? `<button class="btn alt" data-act="co-week-clear">Remove workouts</button>` : "<span></span>"}</div>
-    <div class="err" id="cp-err"></div><button class="btn" data-act="co-send-plan">Send plan to ${esc(firstN(D.name))}</button>`);
+    <div class="err" id="cp-err"></div><button class="btn" data-act="co-send-plan">Send food plan to ${esc(firstN(D.name))}</button>
+    ${(D.targets && D.targets.kcal) || Object.values(D.meals || {}).some(x => (x || []).length) ? `<button class="linkbtn" data-act="co-food-clear" style="color:var(--muted);font-size:13px;align-self:flex-start">Remove the food plan</button>` : ""}`);
 }
-async function sendPlan(){
-  cStash(); const D = cdraft, err = $("#cp-err"); if (!D) return; if (offline()) return err.textContent = "You are offline. Connect to send.";
+async function sendPlan(clearing){
+  if ($("#cp-title")) cStash(); const D = cdraft, err = $("#cp-err") || $("#pe-err") || {set textContent(v){ toast(v); }}; if (!D) return; if (offline()) return err.textContent = "You are offline. Connect to send.";
   const T = D.targets || {}; if (T.kcal && T.kcal < 1200) return err.textContent = "Calories below 1,200 are not safe without medical supervision.";
   const P = {v:1, title:D.title || "", note:D.note || "", targets:T.kcal ? {kcal:T.kcal, p:T.p || null, c:T.c || null, f:T.f || null} : null, meals:D.meals || {}, mealNotes:D.mealNotes || {}, week:D.week || null, from:state.profile.name || ""};
+  const empty = !P.targets && !Object.values(P.meals).some(x => (x || []).length) && !P.week;
+  if (empty) try { await Promise.race([fdb.doc(`${APP}/plans/${gidOf(D.cid, cuser.uid)}`).delete(), late(12000)]); if (clientSum[D.cid]) clientSum[D.cid].plan = null; cdraft = null; closeSheet(); render(); return toast("Plan removed."); } catch(e){ return err.textContent = "It could not be removed. Check your connection."; }
   try { const key = await clientKey(D.cid), box = await ContourVault.sealJSON(key, P), at = Date.now();
     await Promise.race([fdb.doc(`${APP}/plans/${gidOf(D.cid, cuser.uid)}`).set({member:D.cid, trainer:cuser.uid, at, iv:box.iv, ct:box.ct}), late(12000)]);
-    if (clientSum[D.cid]) clientSum[D.cid].plan = at; cdraft = null; closeSheet(); render(); toast(`Plan sent to ${firstN(D.name)}.`);
+    if (clientSum[D.cid]) clientSum[D.cid].plan = at; cdraft = null; closeSheet(); render(); toast(clearing ? "Removed. The rest of the plan stays." : `Plan sent to ${firstN(D.name)}.`);
   } catch(e){ err.textContent = "It could not be sent. Check your connection and try again."; }
 }
 function cSearch(q){
@@ -3121,7 +3145,7 @@ const actions = {
   async "be-trainer"(){ const n = ($("#p-name").value || "").trim(); if (!n) return $("#p-err").textContent = "Enter your name first."; await becomeTrainer(n); },
   async "tr-copy"(el){ try { await navigator.clipboard.writeText(trainerId()); $("#tr-msg").textContent = "Copied. Send it to your client."; } catch(e){ $("#tr-msg").textContent = "Copying is blocked here. Press and hold the ID above to select it."; } },
   "client-open"(el){ if (CLOUD) return cloudOpenClient(el.dataset.cid); const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render(); },
-  "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; if (notesDirty){ notesDirty = false; save(); } viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
+  "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; setSync(offline() ? "Offline" : "Synced"); if (notesDirty){ notesDirty = false; save(); } viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
   async "cl-paste"(){ clientMsg = await importPkgText($("#cl-text").value) || "Added."; render(); },
   "pw-reset"(){ cloudReset(); },
   async "share-start"(el){
@@ -3176,7 +3200,7 @@ const actions = {
   "pe-mv"(el){ peStash(); const i = +el.dataset.i, E = pe[peDay].ex; if (i > 0){ [E[i-1], E[i]] = [E[i], E[i-1]]; } peSheet(); },
   "pe-add"(el){ peStash(); const h = peHits[+el.dataset.i]; if (!h) return; pe[peDay].ex.push(`${h.n}|${h.dose || "3×10"}|${h.cue || ""}|${h.src || ""}`); if (/^rest$/i.test(pe[peDay].t)) pe[peDay].t = "Workout"; peSheet(); },
   "pe-rest"(){ peStash(); pe[peDay] = {t:"Rest", s:"Recover, sleep, stretch", ex:[]}; peSheet(); },
-  "pe-save"(){ peStash(); if (peMode === "coach"){ cdraft.week = pe; pe = null; peMode = "me"; return planSheet(); } state.myPlan = pe; pe = null; save(); closeSheet(); render(); toast("Your week is saved."); },
+  "pe-save"(){ peStash(); if (peMode === "coach"){ if (!pe.some(d => d.ex.length)) { const e = $("#pe-err"); if (e) e.textContent = "Add at least one workout day."; return; } cdraft.week = pe; pe = null; peMode = "me"; return sendPlan(); } state.myPlan = pe; pe = null; save(); closeSheet(); render(); toast("Your week is saved."); },
   "pe-custom"(){ peStash(); const n = ($("#pe-cn").value || "").trim(), d = ($("#pe-cd").value || "").trim(), cu = ($("#pe-cc").value || "").trim(); if (n.length < 2) return; pe[peDay].ex.push(`${n.slice(0, 60)}|${d.slice(0, 24) || "3×10"}|${cu.slice(0, 120)}|Custom`); if (/^rest$/i.test(pe[peDay].t)) pe[peDay].t = "Workout"; peSheet(); },
   "pe-auto"(){ delete state.myPlan; pe = null; save(); closeSheet(); render(); toast("Back to the automatic plan."); },
   "tx-libpick"(el){ const a = (window.__txLib || [])[+el.dataset.i]; if (!a) return; const set = (id, v) => { const e2 = $("#" + id); if (e2 && v != null) e2.value = v; };
@@ -3198,7 +3222,10 @@ const actions = {
   "co-madd"(el){ cStash(); const a = cHits[+el.dataset.i]; if (!a) return; ((cdraft.meals ||= {})[cMeal] ||= []).push({name:a[0], serv:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], qty:1}); planSheet(); const q = $("#cp-q"); if (q) q.focus(); },
   "co-mq"(el){ cStash(); const L = cdraft.meals[cMeal], e = L[+el.dataset.i]; if (!e) return; e.qty = Math.round(((e.qty || 1) + +el.dataset.d)*10)/10; if (e.qty <= 0) L.splice(+el.dataset.i, 1); planSheet(); },
   "co-week"(){ cStash(); peMode = "coach"; pe = JSON.parse(JSON.stringify(cdraft.week || cdraft.baseWeek)); peDay = 0; peSheet(); },
-  "co-week-clear"(){ cStash(); cdraft.week = null; planSheet(); },
+  "co-week-clear"(){ if (pe && peMode === "coach"){ pe = null; peMode = "me"; } cdraft.week = null; sendPlan(true); },
+  "co-food-clear"(){ cdraft.targets = {}; cdraft.meals = {}; cdraft.mealNotes = {}; sendPlan(true); },
+  "co-pick"(el){ if (el.dataset.v === "food"){ cMeal = "Breakfast"; planSheet(); } else { peMode = "coach"; pe = JSON.parse(JSON.stringify(cdraft.week || cdraft.baseWeek)); peDay = 0; peSheet(); } },
+  "co-plan-back"(){ if (peMode === "coach"){ peStash(); pe = null; peMode = "me"; } else cStash(); pickSheet(); },
   "co-send-plan"(){ sendPlan(); },
   "co-notes"(el){ notesSheet(el.dataset.cid); },
   "co-notes-save"(el){ const S = ownState || state; (S.tnotes ||= {})[el.dataset.cid] = ($("#cn-t").value || "").slice(0, 4000); if (viewing) notesDirty = true; else save(); closeSheet(); toast("Notes saved."); if (!viewing) render(); },

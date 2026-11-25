@@ -7,7 +7,7 @@ Y4M = "/tmp/contour-barcode.y4m"
 if not os.path.exists(Y4M): subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-loop", "1", "-i", os.path.join(HERE, "barcode-scene.jpg"), "-t", "4", "-r", "15", "-pix_fmt", "yuv420p", "-vf", "scale=1280:720", Y4M], check=True)
 def ean():
     d=[secrets.randbelow(10) for _ in range(12)]; s=sum(v*(3 if i%2 else 1) for i,v in enumerate(d)); return "".join(map(str,d))+str((10-s%10)%10)
-NEWCODE = ean(); PW = "Tst-" + secrets.token_urlsafe(12); PASS = "".join(secrets.choice("0123456789") for _ in range(6))
+NEWCODE = ean(); PW = "Tst-" + secrets.token_urlsafe(12); PASS = "".join(secrets.choice("0123456789") for _ in range(4))
 log = []; fails = []
 def ok(name, cond, extra=""):
     (log if cond else fails).append(name); print(("PASS " if cond else "FAIL ") + name + (" | " + str(extra)[:220] if extra else ""), flush=True)
@@ -114,12 +114,12 @@ async def main():
         ok("trainer published an exercise", "Banded hip thrust" in await text(t, "#view"), await text(t, "#tex-msg"))
         await shot(t, "t04_exercises")
         # trainer card
-        await t.click("[data-act=profile]"); await t.fill("#tc-city", "Scarborough, ON"); await t.fill("#tc-years", "6"); await t.check("[data-tcs][value='Weight loss']"); await t.check("[data-tcs][value='Strength']")
+        await t.click("[data-act=profile]"); CITY = "Scarborough " + secrets.token_hex(2); await t.fill("#tc-city", CITY); await t.fill("#tc-years", "6"); await t.check("[data-tcs][value='Weight loss']"); await t.check("[data-tcs][value='Strength']")
         await t.click("[data-act=tc-mode][data-v='In person']"); await t.fill("#tc-bio", "I coach busy people to lose fat and get strong with three short sessions a week."); await t.fill("#tc-certs", "CSEP-CPT"); await t.check("#tc-list")
         await shot(t, "t05_card_form"); await t.click("[data-act=tc-save]"); await t.wait_for_timeout(2500)
         ok("trainer card listed", "live" in await text(t, "#toast"), await text(t, "#tc-err") or await text(t, "#toast"))
         # member finds the trainer and shares
-        await m.click("[data-act=profile]"); await m.click("[data-act=tf-find]"); await m.wait_for_timeout(2500); await m.fill("#tf-q", "scarborough"); await m.wait_for_timeout(1200); await shot(m, "m17_find_trainer")
+        await m.click("[data-act=profile]"); await m.click("[data-act=tf-find]"); await m.wait_for_timeout(2500); await m.fill("#tf-q", CITY); await m.wait_for_timeout(1200); await shot(m, "m17_find_trainer")
         card = await text(m, "#tf-list")
         ok("member finds trainer card without email", "Mike C." in card and te not in card, card[:160])
         await m.click("#tf-list [data-act=tf-open] >> nth=0"); await shot(m, "m17b_trainer_card"); await m.click("[data-act=tf-share]"); await m.wait_for_timeout(4000)
@@ -139,11 +139,16 @@ async def main():
         ok("trainer receives the reply", "breakfast" in await text(t, "#chat-list"), await text(t, "#chat-list"))
         await t.click("[data-act=close]")
         # plan
-        await t.click("#view [data-act=co-plan] >> nth=0"); await t.wait_for_timeout(4000)
+        await t.click("#view [data-act=co-plan] >> nth=0"); await t.wait_for_timeout(4000); await shot(t, "t08_pick")
+        ok("send a plan asks food or workouts first", await t.locator("[data-act=co-pick]").count() == 2, "")
+        await t.click("[data-act=co-pick][data-v=food]")
         await t.fill("#cp-title", "Weeks 1-4"); await t.fill("#cp-note", "Protein at every meal. Three strength days."); await t.fill("#cp-kcal", "2000"); await t.fill("#cp-p", "160")
         await t.fill("#cp-q", "egg"); await t.wait_for_timeout(300); await t.click("#cp-hits [data-act=co-madd] >> nth=0"); await t.wait_for_timeout(200)
-        await t.click("[data-act=co-week]"); await t.click("text=Add your own move"); await t.fill("#pe-cn", "Sled push"); await t.fill("#pe-cd", "4x20 m"); await t.click("[data-act=pe-custom]"); await shot(t, "t08_week"); await t.click("[data-act=pe-save]")
         await shot(t, "t09_plan"); await t.click("[data-act=co-send-plan]"); await t.wait_for_timeout(3000)
+        ok("trainer sent the food plan", "Plan sent" in await text(t, "#toast"), await text(t, "#cp-err"))
+        await t.click("#view [data-act=co-plan] >> nth=0"); await t.wait_for_timeout(4000)
+        ok("chooser shows food plan as sent", "Sent" in await text(t, "#panel"), "")
+        await t.click("[data-act=co-pick][data-v=work]"); await t.click("text=Add your own move"); await t.fill("#pe-cn", "Sled push"); await t.fill("#pe-cd", "4x20 m"); await t.click("[data-act=pe-custom]"); await shot(t, "t08_week"); await t.click("[data-act=pe-save]"); await t.wait_for_timeout(3000)
         ok("trainer sent the plan", "Plan sent" in await text(t, "#toast"), await text(t, "#cp-err"))
         await m.click("[data-tab=home]"); await m.wait_for_timeout(2500)
         ok("member is told about the plan", "sent you a plan" in await text(m, "#view"), "")
@@ -157,8 +162,15 @@ async def main():
         ok("private note shows on the client card", "knee" in await text(t, "#view"), "")
         if await t.locator("#view .client").count():
             await t.click("#view .client >> nth=0"); await t.wait_for_timeout(4000); await shot(t, "t10_client_view")
-            ok("trainer opens member's day read-only with coach actions", "Sam" in await text(t, "#view h1") and await t.locator(".banner [data-act=co-plan]").count() > 0, await text(t, "#view h1"))
-            await t.click(".banner [data-act=client-exit]")
+            ok("trainer opens member's day read-only with coach actions", "Sam" in await text(t, "#view h1") and await t.locator(".vbar [data-act=co-plan]").count() > 0, await text(t, "#view h1"))
+            for tb in ["today","scan","focus"]:
+                if await t.locator(f"[data-tab={tb}]").count():
+                    await t.click(f"[data-tab={tb}]"); await t.wait_for_timeout(600); await shot(t, f"t11_view_{tb}")
+            await t.click("[data-tab=home]"); await t.click("[data-act=nav][data-v=progress]"); await t.wait_for_timeout(600); await shot(t, "t11_view_progress")
+            await t.click("[data-tab=home]"); await t.click("[data-act=nav][data-v=reports]"); await t.wait_for_timeout(600); await shot(t, "t11_view_reports")
+            await t.click("[data-tab=home]")
+            await t.click(".vbar [data-act=client-exit]"); await t.wait_for_timeout(500); await shot(t, "t12_after_exit")
+            await t.click("[data-act=profile]"); await t.wait_for_timeout(500); await shot(t, "t13_profile_top")
         # progress page
         await m.click("[data-tab=home]"); await m.click("[data-act=nav][data-v=progress]"); await m.wait_for_timeout(500); await shot(m, "m20_progress")
         # export
