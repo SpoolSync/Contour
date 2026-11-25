@@ -353,6 +353,31 @@ nav.tabs [data-tab="progress"]{display:none}
 .insight b{font-size:13px}.insight p{margin:2px 0 0;font-size:13.5px;color:var(--muted);line-height:1.45}
 .npphoto{display:flex;flex-direction:column;gap:8px}
 .pedose{display:block;margin-top:4px;width:120px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 8px;font:inherit;font-size:16px;color:var(--ink)}
+.tcard{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:8px;font:inherit;color:var(--ink)}
+.tcard.big{border:0;padding:0;background:none}
+.tcard .av,.ccard .av{width:42px;height:42px;border-radius:50%;background:var(--scan);color:#fff;display:grid;place-items:center;font-weight:700;font-size:18px}
+.tcard small{display:block;color:var(--muted);font-size:12.5px}
+.tcard small.ok{color:var(--good);font-weight:600}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.tags i{font-style:normal;font-size:11px;background:var(--sunk);border-radius:999px;padding:2px 8px;color:var(--ink)}
+.ccard{border-top:1px solid var(--line);padding:10px 0}
+.ccard:first-of-type{border-top:0}
+.ccard .client{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;width:100%;border:0;background:none;padding:0;text-align:left;font:inherit;color:var(--ink)}
+.ccard .client small{display:block;color:var(--muted);font-size:12.5px}
+.ccard small.warn{color:var(--high);font-weight:600}
+.ccard small.cnote{font-style:italic}
+.ccard.att .av{background:var(--high)}
+.cacts{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:8px 0 0 54px}
+.tstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.tstats div{background:var(--surface);border-radius:14px;padding:12px;display:flex;flex-direction:column}
+.tstats b{font-family:var(--display);font-size:26px}.tstats small{color:var(--muted);font-size:12px}
+.chat{display:flex;flex-direction:column;gap:8px;max-height:52vh;overflow:auto;padding:4px 2px}
+.msg{max-width:82%;align-self:flex-start;background:var(--sunk);border-radius:14px 14px 14px 4px;padding:8px 12px}
+.msg.me{align-self:flex-end;background:var(--scan);color:#fff;border-radius:14px 14px 4px 14px}
+.msg p{margin:0;font-size:14.5px;line-height:1.4}.msg small{font-size:10.5px;opacity:.7}
+.chatin{display:flex;gap:8px;align-items:flex-end}
+.chatin textarea{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:16px;color:var(--ink);resize:none}
+.banner .bacts{display:flex;gap:6px;flex-wrap:wrap}
 .linkbtn{border:0;background:none;color:var(--high);font-weight:600;font-size:12px;padding:0}
 </style>
 </head>
@@ -431,9 +456,10 @@ function targets(p, kg){
   const bmr = ls && ls.bmr ? ls.bmr : 10*kg + 6.25*p.height - 5*p.age + (p.sex === "f" ? -161 : 5);
   const tdee = bmr * p.activity + (+p.tdeeAdj || 0);
   const floor = p.sex === "f" ? 1200 : 1500;
-  const kcal = Math.max(floor, Math.round((tdee - p.pace*7700/7)/10)*10);
-  const pr = Math.round(1.8*kg), fat = Math.round(0.8*kg);
-  const carb = Math.max(50, Math.round((kcal - pr*4 - fat*9)/4));
+  const C = p.coach && +p.coach.kcal ? p.coach : null;
+  const kcal = C ? Math.max(floor, Math.round(+C.kcal)) : Math.max(floor, Math.round((tdee - p.pace*7700/7)/10)*10);
+  const pr = C && +C.p ? Math.round(+C.p) : Math.round(1.8*kg), fat = C && +C.f ? Math.round(+C.f) : Math.round(0.8*kg);
+  const carb = C && +C.c ? Math.round(+C.c) : Math.max(50, Math.round((kcal - pr*4 - fat*9)/4));
   return {kcal, p:pr, c:carb, f:fat, tdee:Math.round(tdee), floored: kcal === floor};
 }
 
@@ -747,7 +773,7 @@ const myShape = () => state.demo && !state.scans.length ? null : shapeOf(state.s
 let tab = "today", scanning = false;
 const TABS = ["texs","home","today","scan","focus","progress","reports","check","clients"];
 function banner(){
-  if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><button data-act="client-exit">Back to clients</button></div>`;
+  if (viewing) return `<div class="banner"><span>Viewing ${esc(viewing.name)} · read-only · ${CLOUD ? "updated" : "shared"} ${shortD(ymd(new Date(viewing.at)))}</span><div class="bacts">${CLOUD && viewing.cid ? `<button data-act="co-plan" data-cid="${esc(viewing.cid)}">Plan</button><button data-act="co-chat" data-cid="${esc(viewing.cid)}">Message</button><button data-act="co-notes" data-cid="${esc(viewing.cid)}">Notes</button>` : ""}<button data-act="client-exit">Back</button></div></div>`;
   return "";
 }
 function dayTotals(d){ const t = {kcal:0,p:0,c:0,f:0}; for (const e of (state.days[d]||[])){ t.kcal += e.kcal*e.qty; t.p += e.p*e.qty; t.c += e.c*e.qty; t.f += e.f*e.qty; } return t; }
@@ -797,6 +823,7 @@ function viewHome(){
     <button class="tile" data-act="nav" data-v="focus"><label>Today's workout</label><span class="num" style="font-size:19px">${esc(day.t)}</span><span class="sub">${done ? "Done ✓" : esc(day.s)}</span></button>
     <button class="tile" data-act="nav" data-v="scan"><label>Body</label><span class="num">${sc && sc.bf != null ? sc.bf + "<small>% fat</small>" : "–"}</span><span class="sub">${sc ? "Last scan " + shortD(sc.d) : "No scan yet"}</span></button>
   </div>
+  ${coachHomeCard()}
   ${coachCard()}
   ${checkCard()}
   ${startCard()}
@@ -820,7 +847,7 @@ function viewToday(){
     return `<section class="card meal"><h2>${m}<span>${es.length ? Math.round(k) + " kcal" : ""}</span></h2>
     ${es.map(e => `<div class="entry"><div><b>${esc(e.name)}</b><small>${e.serv ? esc(e.serv) + " · " : ""}${Math.round(e.kcal*e.qty)} kcal · ${Math.round(e.p*e.qty)} g protein</small></div>
       <div class="step"><button data-act="qty" data-id="${e.id}" data-d="-0.5" aria-label="Less ${esc(e.name)}">−</button><span>${e.qty}×</span><button data-act="qty" data-id="${e.id}" data-d="0.5" aria-label="More ${esc(e.name)}">+</button></div></div>`).join("")}
-    <button class="add" data-act="addfood" data-meal="${m}">Add to ${m.toLowerCase()}</button>${mealExtras(m, es)}</section>`; }).join("");
+    <button class="add" data-act="addfood" data-meal="${m}">Add to ${m.toLowerCase()}</button>${coachMealLink(m)}${mealExtras(m, es)}</section>`; }).join("");
   const isEmpty = !viewing && !(state.days[vd()] || []).length && !Object.values(state.days).some(x => x && x.length);
   return `${banner()}
   ${isEmpty ? `<section class="card example" aria-label="Example"><span class="extag">Example</span><h2>Breakfast</h2><div class="entry" style="pointer-events:none"><div><b>Oatmeal with banana</b><small>1 bowl · 290 kcal · P 9 C 54 F 5</small></div></div><p class="sub">This is how a logged meal looks. Tap "Add to breakfast" below to log your own. Nothing here counts toward your day.</p></section>` : ""}
@@ -996,6 +1023,7 @@ function viewFocus(){
   const week = buildWeek(), wd = weekDates(), ti = wd.indexOf(today()), eq = state.profile.equip;
   const exRow = x => { const [n, dose, cue, tag] = x.split("|"); return `<div class="ex"><b>${esc(n)}${tag ? `<span class="tag">${esc(tag)}</span>` : ""}</b><span class="dose">${esc(dose)}</span><small>${esc(cue)}</small></div>`; };
   return `${banner()}
+  ${coachPlanCard()}
   <div><h1>Pick the areas to work on</h1><p class="sub">Tap up to three. Your week rebuilds around them.</p></div>
   <section class="card">
     <div class="row between"><span class="sub">${state.focus.length} of 3 selected</span>
@@ -1137,6 +1165,7 @@ function trainerSheet(){
   <form data-form="tname" style="display:flex;flex-direction:column;gap:12px"><label class="f">Name your clients will see<input id="t-name" type="text" maxlength="30" required value="${esc(state.profile.name || "")}" style="font-size:16px"></label>
     <div class="seg" role="group" aria-label="Units"><button type="button" data-act="units" data-v="metric" aria-pressed="${!imp()}">kg · cm</button><button type="button" data-act="units" data-v="imperial" aria-pressed="${imp()}">lb · in</button></div>
     <button class="btn">Save</button>${CLOUD ? "" : `<p class="sub">Changing your name changes your Trainer ID text, but IDs you already sent keep working.</p>`}</form>
+  ${CLOUD && cuser ? tcardForm() : ""}
   ${CLOUD && cuser ? `<div class="owner"><div class="grid2"><button type="button" class="btn alt" data-act="export" data-v="json">Export my data</button><button type="button" class="btn alt" data-act="del-open" style="color:var(--high)">Delete Contour data</button></div><div class="err" id="ex-msg" style="color:var(--muted)"></div></div>` : ""}${!isOwner && (CLOUD || (gateDoc && subtle)) ? `<button type="button" class="btn alt" data-act="logout">Log out${CLOUD && cuser ? " · " + esc(cuser.email || "") : ""}</button>` : ""}${ownerPanel()}`);
 }
 /* ---------- Pixora cloud: accounts, offline-first sync, live trainer access (GitHub build only) ---------- */
@@ -1372,7 +1401,7 @@ async function cloudEnter(u){
     if (!snap.exists || snap.metadata.hasPendingWrites || viewing || pushing || state.demo) return;
     if (((snap.data() || {}).ts || 0) > (state.ts || 0)) cloudLoad(u.uid).catch(() => null).then(r => { if (r && cuser === u && !viewing && (r.ts || 0) > (state.ts || 0)){ monthSig = r._sig || {}; delete r._sig; state = r; putLocal(); render(); setSync("Synced"); } }).catch(() => {});
   }, () => {});
-  myId = u.uid; cloudFoods(); cloudProducts(); cloudTrainerInit(); cloudTexInit(true); dashKick(2000); vforce = false;
+  myId = u.uid; cloudFoods(); cloudProducts(); cloudTrainerInit(); cloudTexInit(true); coachInit(true); dashKick(2000); vforce = false;
   cloudShareRefresh().catch(() => {});
 }
 /* A member's trainer holds a sealed copy of the data key. Re-seal it when the key changed or the grant predates encryption. */
@@ -1407,7 +1436,7 @@ function dashKick(ms){
 }
 function cloudLeave(){
   if (mainUnsub) mainUnsub(); if (grantsUnsub) grantsUnsub(); if (foodsUnsub) foodsUnsub(); if (prodUnsub) prodUnsub(); mainUnsub = grantsUnsub = foodsUnsub = prodUnsub = null; texStop(); texAll = new Map(); community = []; myId = null;
-  clearTimeout(pushTimer); ppList = null; acctLoading = false; ob = null; obForce = false; tourEnd(); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
+  clearTimeout(pushTimer); ppList = null; clientKeys = {}; clientSum = {}; coachInit(true); acctLoading = false; ob = null; obForce = false; tourEnd(); monthSig = {}; lastDir = ""; clients = []; viewing = null; ownState = null; localKey = LOCAL_KEY; state = demoState(); pendingName = ""; setSync("");
 }
 function cloudLogout(){ closeSheet(); authTab = "login"; pxNeed = null; const uid = cuser && cuser.uid; vkeys = null; vpend = null; if (uid) ContourVault.forget(uid).catch(() => {}); firebase.auth().signOut().catch(() => {}); }
 function cloudQueue(){ if (!cuser || state.demo || viewing) return; setSync(offline() ? "Saved on this device, will sync" : "Saving…"); clearTimeout(pushTimer); pushTimer = setTimeout(cloudPush, 900); }
@@ -1493,11 +1522,15 @@ function cloudTrainerInit(){
   }, () => { grantsUnsub = null; });
 }
 function cloudViewClients(){
-  return `${trainerVerifyCard()}<div><h1>Your clients</h1><p class="sub">${clients.length ? `${clients.length} member${clients.length > 1 ? "s share" : " shares"} a profile with you. Tap one to see their current food, workouts, scans and reports.` : "Nobody has shared with you yet."}</p></div>
-  ${clients.length ? `<section class="card"><h2>Shared with you</h2><div>${clients.map(c => `<button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span><b>${esc(c.name)}</b><small>${/^\d{4}-\d\d-\d\d$/.test(c.since) ? "sharing since " + shortD(c.since) : "sharing with you"}</small></span><small>Open</small></button>`).join("")}</div></section>` : ""}
-  <section class="card"><div><h2>How members share with you</h2><p class="sub">They open Profile, then Share with a trainer, and type your email:</p></div>
+  const sums = clients.map(c => clientSum[c.cid] || {}), active = sums.filter(x => x.logged >= 4).length, att = clients.filter(c => { const S = clientSum[c.cid] || {}; if (!S.t || S.loading || S.err) return false; const d = S.lastLog ? (Date.now() - parseD(S.lastLog).getTime())/864e5 : 99; return d >= 3 || S.logged <= 3; }).length, un = sums.reduce((a, x) => a + (x.un || 0), 0);
+  const order = [...clients].sort((a, b) => { const A = clientSum[a.cid] || {}, B = clientSum[b.cid] || {}; return (B.un || 0) - (A.un || 0) || ((A.logged ?? 9) - (B.logged ?? 9)) || a.name.localeCompare(b.name); });
+  return `${trainerVerifyCard()}<div><h1>Your clients</h1><p class="sub">${clients.length ? `${clients.length} member${clients.length > 1 ? "s share" : " shares"} with you.` : "Nobody has shared with you yet."}</p></div>
+  ${clients.length ? `<div class="tstats"><div><b>${active}</b><small>logging well this week</small></div><div><b>${att}</b><small>need a check-in</small></div><div><b>${un}</b><small>unread messages</small></div></div>
+  <section class="card"><h2>Clients</h2><div>${order.map(clientCard).join("")}</div></section>` : ""}
+  ${!(state.tcard && state.tcard.listed) ? `<section class="card coach"><h2>Get found by members</h2><p class="sub">Set up your trainer card so members can find you when they search: first name, city, experience and what you help with. Your email stays private.</p><button class="btn" data-act="profile">Set up my card</button></section>` : ""}
+  <section class="card"><div><h2>How members share with you</h2><p class="sub">They find your card under Find a trainer${state.tcard && state.tcard.listed ? "" : " (once you list it)"}, or type your email in Profile:</p></div>
     <div class="idbox" style="font-size:14px">${esc((cuser && cuser.email) || "")}</div>
-    <p class="sub">They appear here as soon as they share, and disappear if they stop. You always see their latest synced data, and you cannot change it.</p>
+    <p class="sub">They appear here as soon as they share, and disappear if they stop. You see their latest data, can send plans and messages, and cannot change their log.</p>
     <div class="err" id="cl-msg">${esc(clientMsg)}</div></section>`;
 }
 async function cloudOpenClient(cid){
@@ -1511,14 +1544,14 @@ async function cloudOpenClient(cid){
   } catch(e){ why = e && e.code === "nokey" ? "nokey" : ""; snap = null; }
   if (!snap){ clientMsg = offline() ? "You are offline. Connect to open a client's profile." : why === "nokey" ? `${c.name}'s data is encrypted and their key for you hasn't arrived yet. Ask them to open Contour once.` : `${c.name}'s profile could not be opened. They may have stopped sharing, or not synced yet.`; return render(); }
   delete snap._sig; delete snap.share; delete snap.profile.role; snap.profile.units = state.profile.units; clientMsg = "";
-  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now()}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
+  ownState = state; state = snap; viewing = {name:c.name, at:snap.ts || Date.now(), cid}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render();
 }
 function cloudShareBox(){
   if (state.demo || isTrainer() || !cuser) return "";
   const sh = state.share && state.share.cloud ? state.share : null;
   return `<div class="owner" id="share-box"><div><h2>Share with a trainer</h2><p class="sub">${sh ? `Shared with ${esc(sh.name)} since ${shortD(sh.since)}. They see your current food log, workouts, scans, measurements and reports whenever they open your profile. They cannot change anything.` : "Give one trainer read-only access to your food log, workouts, scans, measurements, weight and reports. Enter the email they used for their Contour trainer account."}</p></div>
     ${sh ? `<button type="button" class="btn alt" data-act="share-stop" style="color:var(--high)">Stop sharing with ${esc(sh.name)}</button>`
-         : `<label class="f">Trainer's email<input id="sh-email" type="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label><button type="button" class="btn alt" data-act="share-start">Share my profile</button>`}
+         : `<button type="button" class="btn" data-act="tf-find">Find a trainer</button><p class="sub" style="text-align:center;margin:0">or share by email</p><label class="f">Trainer's email<input id="sh-email" type="email" autocapitalize="none" spellcheck="false" style="font-size:16px"></label><button type="button" class="btn alt" data-act="share-start">Share my profile</button>`}
     <div class="err" id="sh-err" style="color:var(--muted)"></div></div>`;
 }
 async function cloudShareStart(el){
@@ -1533,7 +1566,7 @@ async function cloudShareStart(el){
     if (!t.pub || !vkeys){ el.disabled = false; return say("Your trainer needs to open Contour once (it was just updated) before you can share with them."); }
     const wk = await ContourVault.shareKey(vkeys, t.pub);
     await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today(), wk}), late(10000)]);
-    state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); cloudTexInit(true); reShare(`${esc(t.name || email)} can now see your profile.`);
+    state.share = {cloud:true, uid:t.uid, name:t.name || email, email, since:today()}; save(); cloudTexInit(true); coachInit(true); reShare(`${esc(t.name || email)} can now see your profile.`);
   } catch(e){ el.disabled = false; say("Sharing could not be set up. Check your connection and try again."); }
 }
 async function cloudShareStop(){
@@ -1542,7 +1575,7 @@ async function cloudShareStop(){
   try { await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${sh.uid}`).delete(), late(10000)]); } catch(e){ return reShare("Sharing could not be stopped. Check your connection and try again."); }
   // New data key: the trainer's copy of the old one can't open anything saved from now on.
   try { const r = await ContourVault.rotate(vkeys); vkeys = Object.assign(r.keys, {kw:r.kw, uid:cuser.uid}); await ContourVault.keep(cuser.uid, vkeys); for (const m of Object.keys(monthSig)) monthSig[m] = "rotated"; } catch(e){}
-  delete state.share; save(); cloudTexInit(true); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
+  delete state.share; delete state.coachMeals; delete state.coachNotes; delete state.coachAt; if (state.profile.coach) delete state.profile.coach; save(); cloudTexInit(true); coachInit(true); reShare(`Sharing stopped. ${esc(sh.name)} can no longer see your profile.`);
 }
 /* ---------- health details ---------- */
 const ALLERGENS = [["milk","Milk"],["eggs","Eggs"],["peanuts","Peanuts"],["nuts","Tree nuts"],["gluten","Gluten or wheat"],["soybeans","Soy"],["fish","Fish"],["crustaceans","Shellfish"],["sesame-seeds","Sesame"],["mustard","Mustard"]];
@@ -2145,7 +2178,7 @@ function insightsCard(){
   return `<section class="card"><h2>Patterns</h2>${I.length ? I.map(([t, x]) => `<div class="insight"><b>${t}</b><p>${esc(x)}</p></div>`).join("") : `<p class="sub">Patterns appear after a couple of weeks of logging food, sleep and energy. Each one only shows when your own data backs it up.</p>`}</section>`;
 }
 /* ---------- plan editor: make the week your own, or go back to the automatic plan ---------- */
-let pe = null, peDay = 0, peHits = [];
+let pe = null, peDay = 0, peHits = [], notesDirty = false;
 function peSearch(q){
   const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean); if (!toks.length) return [];
   const out = [], seen = new Set(), push = (n, dose, cue, src) => { const k = n.toLowerCase(); if (seen.has(k) || !toks.every(t => k.includes(t))) return; seen.add(k); out.push({n, dose, cue, src}); };
@@ -2162,10 +2195,223 @@ function peSheet(){
     <div>${D.ex.length ? D.ex.map((x, i) => { const [n, dose] = x.split("|"); return `<div class="entry"><div style="flex:1"><b>${esc(n)}</b><input class="pedose" data-pdi="${i}" type="text" maxlength="24" value="${esc(dose || "")}" aria-label="Sets and reps for ${esc(n)}"></div><div class="step"><button data-act="pe-mv" data-i="${i}" data-d="-1" aria-label="Move up">↑</button><button data-act="pe-rm" data-i="${i}" aria-label="Remove ${esc(n)}">×</button></div></div>`; }).join("") : `<p class="sub">Rest day. Add a move to turn it into a workout.</p>`}</div>
     <label class="f">Add a move<input id="pe-q" type="search" placeholder="squat, plank, row…" autocomplete="off"></label><div id="pe-hits"></div>
     <div class="grid2">${D.ex.length ? `<button class="btn alt" data-act="pe-rest">Make it a rest day</button>` : `<span></span>`}<button class="btn" data-act="pe-save">Save my week</button></div>
-    ${state.myPlan ? `<button class="linkbtn" data-act="pe-auto" style="color:var(--muted);font-size:13px;align-self:flex-start">Go back to the automatic plan</button>` : ""}`);
+    <details><summary style="cursor:pointer;font-weight:600;font-size:14px">Add your own move</summary><div style="display:flex;flex-direction:column;gap:8px;margin-top:8px"><div class="grid2"><label class="f">Name<input id="pe-cn" type="text" maxlength="60" placeholder="Sled push"></label><label class="f">Sets and reps<input id="pe-cd" type="text" maxlength="24" placeholder="4×20 m"></label></div><label class="f">Cue (optional)<input id="pe-cc" type="text" maxlength="120" placeholder="Low hips, drive through the legs"></label><button class="btn alt" data-act="pe-custom">Add move</button></div></details>
+    ${peMode === "coach" ? "" : state.myPlan ? `<button class="linkbtn" data-act="pe-auto" style="color:var(--muted);font-size:13px;align-self:flex-start">Go back to the automatic plan</button>` : ""}`);
+  if (peMode === "coach"){ const b = document.querySelector("[data-act=pe-save]"); if (b) b.textContent = "Back to the plan"; const h = $("#panel h2"); if (h) h.textContent = "Week for " + firstN(cdraft.name); }
 }
 function peStash(){ if (!pe) return; const D = pe[peDay], t = $("#pe-t"), s2 = $("#pe-s"); if (t) D.t = t.value.trim() || D.t; if (s2) D.s = s2.value;
   document.querySelectorAll("[data-pdi]").forEach(el => { const i = +el.dataset.pdi, p = (D.ex[i] || "").split("|"); if (p[0]){ p[1] = el.value.trim(); D.ex[i] = p.join("|"); } }); }
+/* ---------- coaching: trainer cards, plans from trainers, messages, client overview ---------- */
+const SPECIALTIES = ["Weight loss","Strength","Muscle gain","Beginners","Mobility","Nutrition","Seniors","Pre and post-natal","Sports","Rehab-friendly","Running","Yoga"];
+const MODES = ["In person","Online","Both"];
+let tCards = null, tFilter = "", clientKeys = {}, clientSum = {}, coachPlan = null, planUnsub = null, threadUnsub = null, thread = [], chatGid = "", chatOpen = false, cdraft = null, cMeal = "Breakfast", cHits = [], peMode = "me";
+const gidOf = (m, t) => m + "_" + t;
+const shortName = n => { const p = String(n || "").trim().split(/\s+/).filter(Boolean); return (p[0] || "Trainer") + (p[1] ? " " + p[1][0].toUpperCase() + "." : ""); };
+const firstN = n => String(n || "").trim().split(/\s+/)[0] || "your trainer";
+const seenKey = () => "contour-msgseen:" + (cuser ? cuser.uid : "");
+const seenGet = g => { try { return (JSON.parse(localStorage.getItem(seenKey())) || {})[g] || 0; } catch(e){ return 0; } };
+const seenSet = (g, at) => { try { const o = JSON.parse(localStorage.getItem(seenKey())) || {}; o[g] = Math.max(o[g] || 0, at); localStorage.setItem(seenKey(), JSON.stringify(o)); } catch(e){} };
+async function clientKey(cid){
+  if (clientKeys[cid]) return clientKeys[cid];
+  const g = await Promise.race([fdb.doc(`${APP}/grants/${cid}_${cuser.uid}`).get(), late(10000)]), wk = g.exists ? (g.data() || {}).wk : null;
+  if (!wk || !vkeys) throw {code:"nokey"}; const k = await ContourVault.openSharedRW(vkeys, wk); clientKeys[cid] = k; return k;
+}
+/* ----- trainer card (what members see when they search) ----- */
+function tcardForm(){
+  const c = state.tcard || {name:state.profile.name || "", city:"", years:"", specs:[], mode:"Both", bio:"", certs:"", accepting:true, listed:false};
+  return `<div class="owner"><div><h2>Your trainer card</h2><p class="sub">Members who search for a trainer see this card: your first name and last initial, city, experience and focus. Never your email.</p></div>
+    <div class="grid2"><label class="f">City or area<input id="tc-city" type="text" maxlength="40" value="${esc(c.city)}" placeholder="Scarborough, ON"></label><label class="f">Years coaching<input id="tc-years" type="number" inputmode="numeric" min="0" max="60" value="${esc(c.years)}"></label></div>
+    <div class="f">What you help with (up to 6)<div class="chips" style="margin-top:6px">${SPECIALTIES.map(x => `<label class="chip ck"><input type="checkbox" data-tcs value="${esc(x)}" ${c.specs.includes(x) ? "checked" : ""}>${esc(x)}</label>`).join("")}</div></div>
+    <div class="f">How you train people<div class="seg" role="group" aria-label="Mode" style="margin-top:6px">${MODES.map(m => `<button type="button" data-act="tc-mode" data-v="${m}" aria-pressed="${c.mode === m}">${m}</button>`).join("")}</div></div>
+    <label class="f">About you<textarea id="tc-bio" rows="4" maxlength="600" placeholder="How you coach, who you work best with, what a first month looks like.">${esc(c.bio)}</textarea></label>
+    <label class="f">Certifications (optional)<input id="tc-certs" type="text" maxlength="160" value="${esc(c.certs)}" placeholder="CSEP-CPT, NASM, Precision Nutrition L1"></label>
+    <label class="check"><input type="checkbox" id="tc-acc" ${c.accepting ? "checked" : ""}><span>Taking new clients</span></label>
+    <label class="check"><input type="checkbox" id="tc-list" ${c.listed ? "checked" : ""}><span>Show my card when members search</span></label>
+    <div class="err" id="tc-err"></div><button type="button" class="btn" data-act="tc-save">Save trainer card</button>
+    ${c.listed ? `<p class="sub" style="font-size:12px">Members see: <b>${esc(shortName(state.profile.name))}</b>${c.city ? " · " + esc(c.city) : ""}${c.years ? ` · ${esc(c.years)} yrs` : ""}</p>` : ""}</div>`;
+}
+async function tcardSave(){
+  const err = $("#tc-err"), c = {name:state.profile.name || "", city:($("#tc-city").value || "").trim().slice(0, 40), years:Math.max(0, Math.min(60, parseInt($("#tc-years").value) || 0)),
+    specs:[...document.querySelectorAll("[data-tcs]:checked")].map(x => x.value).slice(0, 6), mode:(document.querySelector("[data-act=tc-mode][aria-pressed=true]") || {dataset:{v:"Both"}}).dataset.v,
+    bio:($("#tc-bio").value || "").trim().slice(0, 600), certs:($("#tc-certs").value || "").trim().slice(0, 160), accepting:$("#tc-acc").checked, listed:$("#tc-list").checked};
+  if (c.listed && !(cuser && cuser.emailVerified)) return err.textContent = "Confirm your email first, then your card can be listed.";
+  if (c.listed && c.bio.length < 20) return err.textContent = "Write a sentence or two about how you coach.";
+  state.tcard = c; save();
+  try { const ref = fdb.doc(`${APP}/trainers/${cuser.uid}`);
+    if (c.listed){ if (!vkeys || !vkeys.pub) throw {code:"nopub"}; await Promise.race([ref.set({uid:cuser.uid, name:shortName(c.name), city:c.city, years:c.years, specs:c.specs, mode:c.mode, bio:c.bio, certs:c.certs, accepting:c.accepting, pub:vkeys.pub, at:Date.now()}), late(10000)]); }
+    else await Promise.race([ref.delete(), late(10000)]);
+    toast(c.listed ? "Your card is live. Members can find you." : "Saved. Your card is hidden from search."); closeSheet();
+  } catch(e){ err.textContent = e && e.code === "nopub" ? "Open Contour once more and try again." : "It could not be saved. Check your connection."; }
+}
+/* ----- members: find a trainer ----- */
+async function loadCards(){ try { const sn = await Promise.race([fdb.collection(`${APP}/trainers`).limit(300).get(), late(10000)]); const L = []; sn.forEach(d => { const x = d.data() || {}; if (x.uid && x.name && x.pub) L.push(x); }); tCards = L.sort((a, b) => (b.accepting - a.accepting) || String(a.name).localeCompare(b.name)); } catch(e){ tCards = []; } }
+function findSheet(){
+  const q = (($("#tf-q") || {}).value || "").toLowerCase(), L = (tCards || []).filter(c => (!tFilter || (c.specs || []).includes(tFilter)) && (!q || [c.name, c.city, c.bio, ...(c.specs || [])].join(" ").toLowerCase().includes(q)));
+  openSheet(`${head("Find a trainer")}<p class="sub">Trainers list themselves here. You see their card, not their contact details. Sharing gives one trainer read-only access to your log, and you can stop any time.</p>
+    <label class="f">Search by name, city or focus<input id="tf-q" type="search" value="${esc(q)}" autocomplete="off"></label>
+    <div class="chips">${["", ...SPECIALTIES].map(x => `<button class="chip${tFilter === x ? " on" : ""}" data-act="tf-spec" data-v="${esc(x)}">${x || "All"}</button>`).join("")}</div>
+    <div id="tf-list">${tCards === null ? `<p class="sub">Loading trainers…</p>` : L.length ? L.map(c => `<button class="tcard" data-act="tf-open" data-uid="${esc(c.uid)}"><span class="av" aria-hidden="true">${esc(c.name[0] || "T")}</span><span><b>${esc(c.name)}</b><small>${[c.city, c.years ? c.years + " yrs coaching" : "", c.mode].filter(Boolean).map(esc).join(" · ")}</small><span class="tags">${(c.specs || []).slice(0, 3).map(s2 => `<i>${esc(s2)}</i>`).join("")}</span></span><small class="${c.accepting ? "ok" : ""}">${c.accepting ? "Taking clients" : "Full"}</small></button>`).join("") : `<p class="sub">No trainers match yet. You can also share by typing your trainer's email in Profile.</p>`}</div>`);
+  if (tCards === null) loadCards().then(() => { if ($("#tf-list")) findSheet(); });
+}
+function cardSheet(uid){
+  const c = (tCards || []).find(x => x.uid === uid); if (!c) return; const sh = state.share && state.share.cloud;
+  openSheet(`${head(esc(c.name))}<div class="tcard big"><span class="av" aria-hidden="true">${esc(c.name[0] || "T")}</span><span><small>${[c.city, c.years ? c.years + " years coaching" : "", c.mode].filter(Boolean).map(esc).join(" · ")}</small><span class="tags">${(c.specs || []).map(s2 => `<i>${esc(s2)}</i>`).join("")}</span></span></div>
+    <p style="white-space:pre-wrap">${esc(c.bio || "")}</p>${c.certs ? `<p class="sub"><b>Certifications:</b> ${esc(c.certs)}</p>` : ""}
+    ${sh ? `<p class="note">You already share with ${esc(state.share.name)}. Stop that first in Profile to switch trainers.</p>` : !c.accepting ? `<p class="note">${esc(firstN(c.name))} isn't taking new clients right now.</p>`
+      : `<p class="sub">If you share, ${esc(firstN(c.name))} can see your food log, workouts, scans, measurements and reports, can send you plans and messages, and cannot change your data. Body photos never leave your phone.</p><div class="err" id="sh-err"></div><button class="btn" data-act="tf-share" data-uid="${esc(c.uid)}">Share my profile with ${esc(firstN(c.name))}</button>`}`);
+}
+async function shareWith(t, sayEl){
+  const say = x => { const e = $(sayEl); if (e){ e.style.color = "var(--high)"; e.textContent = x; } };
+  if (offline()) return say("You are offline. Connect to start sharing.");
+  if (!t.pub || !vkeys) return say("That trainer needs to open Contour once before you can share.");
+  try { const wk = await ContourVault.shareKey(vkeys, t.pub);
+    await Promise.race([fdb.doc(`${APP}/grants/${cuser.uid}_${t.uid}`).set({member:cuser.uid, trainer:t.uid, memberName:state.profile.name || "Member", trainerName:t.name || "", since:today(), wk}), late(10000)]);
+    state.share = {cloud:true, uid:t.uid, name:t.name || "Trainer", email:t.email || "", since:today()}; save(); cloudTexInit(true); coachInit(true); return true;
+  } catch(e){ say("Sharing could not be set up. Check your connection and try again."); return false; }
+}
+/* ----- member side: plan and messages from the trainer ----- */
+function coachInit(reset){
+  if (reset){ if (planUnsub) planUnsub(); if (threadUnsub) threadUnsub(); planUnsub = threadUnsub = null; coachPlan = null; thread = []; }
+  if (!CLOUD || !fdb || !cuser || !vkeys) return;
+  if (isTrainer() || !(state.share && state.share.cloud && state.share.uid) || planUnsub) return;
+  const g = gidOf(cuser.uid, state.share.uid);
+  planUnsub = fdb.doc(`${APP}/plans/${g}`).onSnapshot(async d => {
+    if (!d.exists){ coachPlan = null; return rerenderCoach(); }
+    try { const x = d.data(); const P = await ContourVault.openJSON(vkeys.dk, x); coachPlan = {...P, at:x.at}; } catch(e){ coachPlan = {err:1, at:(d.data() || {}).at}; }
+    rerenderCoach();
+  }, () => { planUnsub = null; });
+  threadUnsub = fdb.collection(`${APP}/threads/${g}/msgs`).limit(300).onSnapshot(async sn => { thread = await openMsgs(sn, vkeys.dk); if (chatOpen) chatList(); else rerenderCoach(); }, () => {});
+}
+async function openMsgs(sn, key){ const out = []; for (const d of sn.docs){ const x = d.data() || {}; let t = ""; try { t = (await ContourVault.openJSON(key, x)).t; } catch(e){ t = "(could not be opened)"; } out.push({id:d.id, from:x.from, at:+x.at || 0, t:String(t || "")}); } return out.sort((a, b) => a.at - b.at); }
+function rerenderCoach(){ if (["home","focus","today"].includes(tab) && !$("#sheet").classList.contains("open") && !viewing) render(); }
+const unread = () => thread.filter(m => m.from !== (cuser && cuser.uid) && m.at > seenGet(chatGid || (cuser && state.share ? gidOf(cuser.uid, state.share.uid) : ""))).length;
+function coachHomeCard(){
+  if (!CLOUD || viewing || isTrainer() || !(state.share && state.share.cloud)) return ""; const n = firstN(state.share.name), u = unread(), newPlan = coachPlan && !coachPlan.err && coachPlan.at !== state.coachAt;
+  if (!u && !newPlan) return "";
+  return `<section class="card coach"><h2>From ${esc(n)}</h2>${newPlan ? `<p class="sub">${esc(n)} sent you a plan${coachPlan.title ? `: “${esc(coachPlan.title)}”` : ""}.</p><button class="btn" data-act="nav" data-v="focus">See the plan</button>` : ""}
+    ${u ? `<button class="btn ${newPlan ? "alt" : ""}" data-act="co-chat">${u} new message${u > 1 ? "s" : ""}</button>` : ""}</section>`;
+}
+function coachPlanCard(){
+  if (!CLOUD || viewing || isTrainer() || !(state.share && state.share.cloud)) return ""; const n = firstN(state.share.name), P = coachPlan, using = P && P.at === state.coachAt;
+  const msgBtn = `<button class="btn alt" data-act="co-chat">Message ${esc(n)}${unread() ? ` · ${unread()} new` : ""}</button>`;
+  if (!P) return `<section class="card"><div class="row between"><h2>Your trainer</h2><span class="sub">${esc(state.share.name)}</span></div><p class="sub">${esc(n)} can send you a plan here: daily targets, meals and a week of workouts.</p>${msgBtn}</section>`;
+  if (P.err) return `<section class="card"><h2>Plan from ${esc(n)}</h2><p class="sub">It could not be opened on this phone. Ask ${esc(n)} to send it again.</p>${msgBtn}</section>`;
+  const T = P.targets || {}, mealsN = Object.values(P.meals || {}).reduce((a, L) => a + (L || []).length, 0);
+  return `<section class="card coach"><div class="row between"><h2>${esc(P.title || "Plan from " + n)}</h2>${using ? `<span class="pill st-good">In use</span>` : ""}</div>
+    ${P.note ? `<p style="white-space:pre-wrap;margin:0">${esc(P.note)}</p>` : ""}
+    <div class="reads">${T.kcal ? `<div class="read"><span>Daily calories</span><span class="v">${T.kcal}</span></div>` : ""}${T.p ? `<div class="read"><span>Protein</span><span class="v">${T.p} g</span></div>` : ""}${mealsN ? `<div class="read"><span>Planned meals</span><span class="v">${mealsN} items</span></div>` : ""}${P.week ? `<div class="read"><span>Workouts</span><span class="v">${P.week.filter(d => d.ex.length).length} days a week</span></div>` : ""}</div>
+    <p class="sub" style="font-size:12px">Sent ${new Date(P.at).toLocaleDateString(undefined, {month:"short", day:"numeric"})} by ${esc(state.share.name)}.</p>
+    ${using ? `<button class="btn alt" data-act="co-unapply">Stop using this plan</button>` : `<button class="btn" data-act="co-apply">Use this plan</button>`}${msgBtn}</section>`;
+}
+function applyPlan(){
+  const P = coachPlan; if (!P || P.err) return; const T = P.targets || {};
+  if (P.week && P.week.length === 7) state.myPlan = P.week.map(d => ({t:d.t, s:d.s || "", ex:(d.ex || []).slice(0, 20)}));
+  if (T.kcal) state.profile.coach = {kcal:+T.kcal, p:+T.p || null, c:+T.c || null, f:+T.f || null, by:state.share.name}; else delete state.profile.coach;
+  state.coachMeals = P.meals || null; state.coachNotes = P.mealNotes || null; state.coachAt = P.at; save();
+  fdb.doc(`${APP}/grants/${cuser.uid}_${state.share.uid}`).update({planUsed:P.at}).catch(() => {});
+}
+function coachMealLink(m){
+  if (viewing || !state.coachMeals || !(state.coachMeals[m] || []).length || !state.share) return "";
+  const L = state.coachMeals[m], k = Math.round(L.reduce((a, e) => a + e.kcal*(e.qty || 1), 0));
+  return `<button class="linkbtn mealx" data-act="co-logmeal" data-meal="${m}">Log ${esc(firstN(state.share.name))}'s ${m.toLowerCase()} · ${k} kcal</button>${state.coachNotes && state.coachNotes[m] ? `<p class="sub" style="font-size:12px;margin:0">${esc(state.coachNotes[m])}</p>` : ""}`;
+}
+/* ----- messages (both sides) ----- */
+async function chatSheet(cid){
+  const tr = isTrainer(); let key, g, other;
+  try { if (tr){ key = await clientKey(cid); g = gidOf(cid, cuser.uid); other = (clients.find(c => c.cid === cid) || {}).name || "Client"; } else { key = vkeys.dk; g = gidOf(cuser.uid, state.share.uid); other = state.share.name; } }
+  catch(e){ return toast("Messages can't be opened yet. Ask your client to open Contour once."); }
+  chatGid = g; chatOpen = true; chatKey = key;
+  openSheet(`${head("Messages with " + esc(firstN(other)))}<div id="chat-list" class="chat" aria-live="polite"><p class="sub">Loading…</p></div>
+    <div class="chatin"><textarea id="chat-t" rows="2" maxlength="1500" placeholder="Write a message"></textarea><button class="btn" data-act="co-send" style="width:auto">Send</button></div>
+    <p class="sub" style="font-size:11.5px">Messages are encrypted on the phone. Only you and ${esc(firstN(other))} can read them.</p>`);
+  if (tr){ if (threadUnsub) threadUnsub(); threadUnsub = fdb.collection(`${APP}/threads/${g}/msgs`).limit(300).onSnapshot(async sn => { thread = await openMsgs(sn, key); if (chatOpen) chatList(); }, () => {}); }
+  else chatList();
+}
+let chatKey = null;
+function chatList(){
+  const L = $("#chat-list"); if (!L) return; const me = cuser.uid;
+  L.innerHTML = thread.length ? thread.map(m => `<div class="msg${m.from === me ? " me" : ""}"><p>${esc(m.t).replace(/\n/g, "<br>")}</p><small>${new Date(m.at).toLocaleString([], {month:"short", day:"numeric", hour:"numeric", minute:"2-digit"})}</small></div>`).join("") : `<p class="sub">No messages yet. Say hello.</p>`;
+  L.scrollTop = L.scrollHeight; if (thread.length) seenSet(chatGid, thread[thread.length-1].at);
+}
+async function chatSend(){
+  const ta = $("#chat-t"), t = (ta.value || "").trim(); if (!t || !chatGid || !chatKey) return; if (offline()) return toast("You are offline. Connect to send.");
+  ta.value = ""; const box = await ContourVault.sealJSON(chatKey, {t:t.slice(0, 1500)});
+  try { await Promise.race([fdb.collection(`${APP}/threads/${chatGid}/msgs`).add({from:cuser.uid, at:Date.now(), iv:box.iv, ct:box.ct}), late(10000)]); } catch(e){ ta.value = t; toast("Not sent. Check your connection."); }
+}
+/* ----- trainer side: client overview ----- */
+async function loadClientSum(c){
+  if (clientSum[c.cid] && Date.now() - clientSum[c.cid].t < 5*60e3) return;
+  clientSum[c.cid] = {t:Date.now(), loading:true};
+  try { const key = await clientKey(c.cid), S = await Promise.race([cloudLoad(c.cid, key), late(12000)]); if (!S) throw 0;
+    const wk = [...Array(7)].map((_, i) => daysAgo(i)), logged = wk.filter(d => (S.days[d] || []).length).length, work = wk.filter(d => S.done[d]).length;
+    const W = S.weights || [], now = W[W.length-1], then = [...W].reverse().find(x => x.d <= daysAgo(14)) || W[0];
+    const lastLog = Object.keys(S.days).filter(d => (S.days[d] || []).length).sort().pop() || "";
+    const g = await fdb.doc(`${APP}/grants/${c.cid}_${cuser.uid}`).get(), pu = g.exists ? (g.data() || {}).planUsed : null;
+    let pl = null; try { const pd = await fdb.doc(`${APP}/plans/${gidOf(c.cid, cuser.uid)}`).get(); if (pd.exists) pl = pd.data().at; } catch(e){}
+    let un = 0; try { const ms = await fdb.collection(`${APP}/threads/${gidOf(c.cid, cuser.uid)}/msgs`).limit(300).get(); ms.forEach(d => { const x = d.data(); if (x.from === c.cid && x.at > seenGet(gidOf(c.cid, cuser.uid))) un++; }); } catch(e){}
+    clientSum[c.cid] = {t:Date.now(), logged, work, ts:S.ts, lastLog, kg:now ? now.kg : null, dkg:now && then && now !== then ? now.kg - then.kg : null, goal:S.profile.goalKg, plan:pl, planUsed:pu, un};
+  } catch(e){ clientSum[c.cid] = {t:Date.now(), err:1}; }
+  if (tab === "clients" && !viewing && !$("#sheet").classList.contains("open")) render();
+}
+function clientCard(c){
+  const S = clientSum[c.cid] || {}, days = S.lastLog ? Math.round((Date.now() - parseD(S.lastLog).getTime())/864e5) : null, att = S.err ? "" : (days == null || days >= 3 ? `Hasn't logged food ${days == null ? "yet" : `in ${days} days`}` : S.logged <= 3 ? "Logging is patchy this week" : "");
+  if (!S.t || S.loading) loadClientSum(c);
+  const note = ((ownState || state).tnotes || {})[c.cid];
+  return `<div class="ccard${att ? " att" : ""}"><button class="client" data-act="client-open" data-cid="${esc(c.cid)}"><span class="av" aria-hidden="true">${esc((c.name || "M")[0])}</span><span><b>${esc(c.name)}</b><small>${S.loading || !S.t ? "Loading…" : S.err ? "Couldn't load. Open to retry." : `${S.logged}/7 days logged · ${S.work} workout${S.work === 1 ? "" : "s"}${S.dkg != null ? ` · ${S.dkg <= 0 ? "−" : "+"}${showWt(Math.abs(S.dkg))} ${wtU()} in 2 wks` : ""}`}</small>${att ? `<small class="warn">${att}</small>` : ""}${note ? `<small class="cnote">${esc(note.slice(0, 80))}</small>` : ""}</span><small>Open</small></button>
+    <div class="cacts"><button class="pillbtn alt" data-act="co-chat" data-cid="${esc(c.cid)}">Message${S.un ? ` · ${S.un}` : ""}</button><button class="pillbtn alt" data-act="co-plan" data-cid="${esc(c.cid)}">${S.plan ? "Edit plan" : "Send a plan"}</button><button class="pillbtn alt" data-act="co-notes" data-cid="${esc(c.cid)}">Notes</button>
+    ${S.plan ? `<small class="sub">${S.planUsed === S.plan ? "Plan in use" : "Plan sent, not started"}</small>` : ""}</div></div>`;
+}
+/* ----- trainer side: build and send a plan ----- */
+async function planSheetOpen(cid){
+  const c = clients.find(x => x.cid === cid); if (!c) return; toast("Opening…");
+  try { const key = await clientKey(cid); let P = null; const d = await fdb.doc(`${APP}/plans/${gidOf(cid, cuser.uid)}`).get(); if (d.exists) try { P = await ContourVault.openJSON(key, d.data()); } catch(e){}
+    let S = viewing && viewing.cid === cid ? state : null; if (!S) S = await cloudLoad(cid, key);
+    const ow = state; let tg = null, wk = null; try { state = S; tg = targets(S.profile, curKg()); wk = JSON.parse(JSON.stringify(buildWeek())); } finally { state = ow; }
+    cdraft = P ? {...P, cid} : {cid, title:"", note:"", targets:{kcal:tg.kcal, p:tg.p, c:tg.c, f:tg.f}, meals:{}, mealNotes:{}, week:null};
+    cdraft.suggest = tg; cdraft.baseWeek = wk; cdraft.name = c.name; planSheet();
+  } catch(e){ toast(e && e.code === "nokey" ? `${c.name}'s key hasn't arrived yet. Ask them to open Contour once.` : "Couldn't open this client right now."); }
+}
+function cStash(){ if (!cdraft) return; const v = id => ($("#" + id) || {}).value; if (v("cp-title") != null) cdraft.title = v("cp-title").trim().slice(0, 60); if (v("cp-note") != null) cdraft.note = v("cp-note").slice(0, 1500);
+  for (const k of ["kcal","p","c","f"]){ const x = v("cp-" + k); if (x != null) cdraft.targets[k] = x === "" ? null : Math.max(0, Math.min(k === "kcal" ? 6000 : 600, Math.round(+x))); }
+  if (v("cp-mnote") != null) (cdraft.mealNotes ||= {})[cMeal] = v("cp-mnote").slice(0, 200); }
+function planSheet(){
+  const D = cdraft, T = D.targets || {}, L = (D.meals || {})[cMeal] || [], tot = m => Math.round(((D.meals || {})[m] || []).reduce((a, e) => a + e.kcal*(e.qty || 1), 0));
+  openSheet(`${head("Plan for " + esc(firstN(D.name)))}<p class="sub">${esc(firstN(D.name))} gets this in their Plan tab and chooses to use it. Everything is encrypted for them.</p>
+    <label class="f">Title<input id="cp-title" type="text" maxlength="60" value="${esc(D.title || "")}" placeholder="Weeks 1–4: build the habit"></label>
+    <label class="f">Note to ${esc(firstN(D.name))}<textarea id="cp-note" rows="3" maxlength="1500" placeholder="What to focus on this block, and why.">${esc(D.note || "")}</textarea></label>
+    <h2>Daily targets</h2><p class="sub" style="margin-top:-6px">Their own numbers now: ${D.suggest.kcal} kcal, ${D.suggest.p} g protein. Leave calories blank to keep their own.</p>
+    <div class="grid2">${["kcal","p"].map(k => `<label class="f">${k === "kcal" ? "Calories" : "Protein (g)"}<input id="cp-${k}" type="number" inputmode="numeric" value="${T[k] == null ? "" : T[k]}"></label>`).join("")}</div>
+    <div class="grid2">${["c","f"].map(k => `<label class="f">${k === "c" ? "Carbs (g)" : "Fat (g)"}<input id="cp-${k}" type="number" inputmode="numeric" value="${T[k] == null ? "" : T[k]}"></label>`).join("")}</div>
+    <h2>Meals</h2><div class="chips">${MEALS.map(m => `<button class="chip${m === cMeal ? " on" : ""}" data-act="co-meal" data-v="${m}">${m}${tot(m) ? ` · ${tot(m)}` : ""}</button>`).join("")}</div>
+    <div>${L.length ? L.map((e, i) => `<div class="entry"><div><b>${esc(e.name)}</b><small>${esc(e.serv || "")} · ${Math.round(e.kcal*(e.qty || 1))} kcal</small></div><div class="step"><button data-act="co-mq" data-i="${i}" data-d="-0.5" aria-label="Less">−</button><span>${e.qty || 1}×</span><button data-act="co-mq" data-i="${i}" data-d="0.5" aria-label="More">+</button></div></div>`).join("") : `<p class="sub">No foods for ${cMeal.toLowerCase()} yet.</p>`}</div>
+    <label class="f">Add a food to ${cMeal.toLowerCase()}<input id="cp-q" type="search" placeholder="eggs, oats, chicken…" autocomplete="off"></label><div id="cp-hits"></div>
+    <label class="f">Note for ${cMeal.toLowerCase()} (optional)<input id="cp-mnote" type="text" maxlength="200" value="${esc((D.mealNotes || {})[cMeal] || "")}" placeholder="Swap rice for potatoes any day"></label>
+    <h2>Workouts</h2><p class="sub" style="margin-top:-6px">${D.week ? D.week.map(d => esc(d.t)).join(" · ") : "Not set. They keep their current week."}</p>
+    <div class="grid2"><button class="btn alt" data-act="co-week">${D.week ? "Edit the week" : "Set their week"}</button>${D.week ? `<button class="btn alt" data-act="co-week-clear">Remove workouts</button>` : "<span></span>"}</div>
+    <div class="err" id="cp-err"></div><button class="btn" data-act="co-send-plan">Send plan to ${esc(firstN(D.name))}</button>`);
+}
+async function sendPlan(){
+  cStash(); const D = cdraft, err = $("#cp-err"); if (!D) return; if (offline()) return err.textContent = "You are offline. Connect to send.";
+  const T = D.targets || {}; if (T.kcal && T.kcal < 1200) return err.textContent = "Calories below 1,200 are not safe without medical supervision.";
+  const P = {v:1, title:D.title || "", note:D.note || "", targets:T.kcal ? {kcal:T.kcal, p:T.p || null, c:T.c || null, f:T.f || null} : null, meals:D.meals || {}, mealNotes:D.mealNotes || {}, week:D.week || null, from:state.profile.name || ""};
+  try { const key = await clientKey(D.cid), box = await ContourVault.sealJSON(key, P), at = Date.now();
+    await Promise.race([fdb.doc(`${APP}/plans/${gidOf(D.cid, cuser.uid)}`).set({member:D.cid, trainer:cuser.uid, at, iv:box.iv, ct:box.ct}), late(12000)]);
+    if (clientSum[D.cid]) clientSum[D.cid].plan = at; cdraft = null; closeSheet(); render(); toast(`Plan sent to ${firstN(D.name)}.`);
+  } catch(e){ err.textContent = "It could not be sent. Check your connection and try again."; }
+}
+function cSearch(q){
+  const toks = q.trim().toLowerCase().split(/\s+/).filter(Boolean); if (!toks.length) return [];
+  const pool = [...(state.myFoods || []), ...FOODS, ...(Array.isArray(window.USDA) ? window.USDA : [])], out = [];
+  for (const a of pool){ const n = a[0].toLowerCase(); if (toks.every(t => n.includes(t))) out.push([(n.startsWith(toks[0]) ? 0 : 1) + n.length/400, a]); if (out.length > 300) break; }
+  return out.sort((x, y) => x[0] - y[0]).slice(0, 8).map(x => x[1]);
+}
+/* ----- trainer side: private notes per client ----- */
+function notesSheet(cid){
+  const c = clients.find(x => x.cid === cid) || {name:"Client"}, S = ownState || state;
+  openSheet(`${head("Notes on " + esc(firstN(c.name)))}<p class="sub">Private to you. ${esc(firstN(c.name))} never sees these. Stored encrypted in your own account.</p>
+    <textarea id="cn-t" rows="10" maxlength="4000" style="width:100%;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;font:inherit;font-size:16px;color:var(--ink)" placeholder="Injuries, preferences, what worked, what to try next.">${esc((S.tnotes || {})[cid] || "")}</textarea>
+    <button class="btn" data-act="co-notes-save" data-cid="${esc(cid)}">Save notes</button>`);
+}
 /* ---------- weekly wins: only goals actually reached ---------- */
 function weeklyWins(n){
   n = n || 7; const dates = [...Array(n)].map((_, i) => daysAgo(n-1-i)), from = dates[0], tg = targets(state.profile, curKg()), tots = dates.map(dayTotals), W = [];
@@ -2316,6 +2562,7 @@ function texSheet(id){
   const tx = (fid, label, val, ph, max) => `<label class="f">${label}<input id="${fid}" type="text" maxlength="${max || 80}" value="${esc(val || "")}" placeholder="${esc(ph || "")}"></label>`;
   openSheet(`${head(x ? "Edit exercise" : "New exercise")}
   <form data-form="tex" data-id="${esc(id || "")}" style="display:flex;flex-direction:column;gap:12px">
+    ${x ? "" : `<label class="f">Start from the exercise library (optional)<input id="tx-lib" type="search" placeholder="Search 770+ exercises" autocomplete="off"></label><div id="tx-lib-hits"></div>`}
     ${tx("tx-name", "Name", x && x.name, "Goblet squat")}
     <div class="f">Body parts it trains<div class="chips" style="margin-top:6px">${Object.keys(REGIONS).map(k => `<label class="chip ck"><input type="checkbox" data-txr value="${k}" ${regs.includes(k) ? "checked" : ""}>${esc(REGIONS[k].label)}</label>`).join("")}</div></div>
     ${tx("tx-mus", "Muscles worked", d.muscles, "Quads, glutes, core", 120)}
@@ -2694,7 +2941,7 @@ function go(t){ if (tourS) tourEnd(); tab = TABS.includes(t) ? t : "home"; if (w
 
 /* ---------- sheets ---------- */
 function openSheet(html){ $("#panel").innerHTML = html; draftRestore($("#panel")); fillPhotos($("#panel")); $("#sheet").classList.add("open"); const f = $("#panel input, #panel textarea"); if (f && !("ontouchstart" in window)) f.focus(); }
-function closeSheet(){ clearInterval(wkTimer); wkTimer = null; stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
+function closeSheet(){ clearInterval(wkTimer); wkTimer = null; if (chatOpen){ chatOpen = false; if (isTrainer() && threadUnsub){ threadUnsub(); threadUnsub = null; } } if (peMode === "coach" && pe){ pe = null; peMode = "me"; } stopScanner(); scanProduct = null; $("#sheet").classList.remove("open"); $("#panel").innerHTML = ""; aiItems = []; if (aiCtl) aiCtl.abort(); }
 const head = t => `<div class="hd"><h2>${t}</h2><button class="x" data-act="close" aria-label="Close">×</button></div>`;
 const fld = (id, label, val, attrs="", hint="") => `<label class="f">${label}<input id="${id}" type="number" inputmode="decimal" step="0.1" value="${val ?? ""}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
 
@@ -2860,7 +3107,7 @@ const actions = {
   async "be-trainer"(){ const n = ($("#p-name").value || "").trim(); if (!n) return $("#p-err").textContent = "Enter your name first."; await becomeTrainer(n); },
   async "tr-copy"(el){ try { await navigator.clipboard.writeText(trainerId()); $("#tr-msg").textContent = "Copied. Send it to your client."; } catch(e){ $("#tr-msg").textContent = "Copying is blocked here. Press and hold the ID above to select it."; } },
   "client-open"(el){ if (CLOUD) return cloudOpenClient(el.dataset.cid); const c = clients.find(x => x.cid === el.dataset.cid); if (!c) return; const snap = normalise({...plain(c.snap), demo:false}); if (!snap) return; snap.profile.units = state.profile.units; ownState = state; state = snap; viewing = {name:c.name, at:c.at}; viewDate = null; tab = "home"; $("#view").scrollTop = 0; render(); },
-  "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
+  "client-exit"(){ if (!viewing) return; state = ownState; ownState = null; viewing = null; if (notesDirty){ notesDirty = false; save(); } viewDate = null; tab = "clients"; $("#view").scrollTop = 0; render(); },
   async "cl-paste"(){ clientMsg = await importPkgText($("#cl-text").value) || "Added."; render(); },
   "pw-reset"(){ cloudReset(); },
   async "share-start"(el){
@@ -2909,14 +3156,41 @@ const actions = {
   "act-del"(el){ const L = (state.acts || {})[vd()] || [], i = L.findIndex(x => x.id === el.dataset.id); if (i < 0) return; const [x] = L.splice(i, 1); save(); render(); toast(`Removed ${x.name}`, () => { L.splice(i, 0, x); save(); render(); }); },
   ck(el){ const c = ((state.check ||= {})[today()] ||= {}); c[el.dataset.k] = +el.dataset.v; save(); render(); if (c.sleep != null && c.energy != null) toast("Checked in. Thanks."); },
   "ck-skip"(){ const c = ((state.check ||= {})[today()] ||= {}); if (c.sleep == null) c.sleep = null; c.energy = c.energy || 0; c.skip = 1; save(); render(); },
-  "pe-open"(){ pe = JSON.parse(JSON.stringify(buildWeek())); peDay = Math.max(0, weekDates().indexOf(today())); peSheet(); },
+  "pe-open"(){ peMode = "me"; pe = JSON.parse(JSON.stringify(buildWeek())); peDay = Math.max(0, weekDates().indexOf(today())); peSheet(); },
   "pe-day"(el){ peStash(); peDay = +el.dataset.i; peSheet(); },
   "pe-rm"(el){ peStash(); pe[peDay].ex.splice(+el.dataset.i, 1); peSheet(); },
   "pe-mv"(el){ peStash(); const i = +el.dataset.i, E = pe[peDay].ex; if (i > 0){ [E[i-1], E[i]] = [E[i], E[i-1]]; } peSheet(); },
   "pe-add"(el){ peStash(); const h = peHits[+el.dataset.i]; if (!h) return; pe[peDay].ex.push(`${h.n}|${h.dose || "3×10"}|${h.cue || ""}|${h.src || ""}`); if (/^rest$/i.test(pe[peDay].t)) pe[peDay].t = "Workout"; peSheet(); },
   "pe-rest"(){ peStash(); pe[peDay] = {t:"Rest", s:"Recover, sleep, stretch", ex:[]}; peSheet(); },
-  "pe-save"(){ peStash(); state.myPlan = pe; pe = null; save(); closeSheet(); render(); toast("Your week is saved."); },
+  "pe-save"(){ peStash(); if (peMode === "coach"){ cdraft.week = pe; pe = null; peMode = "me"; return planSheet(); } state.myPlan = pe; pe = null; save(); closeSheet(); render(); toast("Your week is saved."); },
+  "pe-custom"(){ peStash(); const n = ($("#pe-cn").value || "").trim(), d = ($("#pe-cd").value || "").trim(), cu = ($("#pe-cc").value || "").trim(); if (n.length < 2) return; pe[peDay].ex.push(`${n.slice(0, 60)}|${d.slice(0, 24) || "3×10"}|${cu.slice(0, 120)}|Custom`); if (/^rest$/i.test(pe[peDay].t)) pe[peDay].t = "Workout"; peSheet(); },
   "pe-auto"(){ delete state.myPlan; pe = null; save(); closeSheet(); render(); toast("Back to the automatic plan."); },
+  "tx-libpick"(el){ const a = (window.__txLib || [])[+el.dataset.i]; if (!a) return; const set = (id, v) => { const e2 = $("#" + id); if (e2 && v != null) e2.value = v; };
+    set("tx-name", a[0]); document.querySelectorAll("[data-txr]").forEach(c => c.checked = c.value === a[1]);
+    const eqMap = {"none":"None (bodyweight)","body only":"None (bodyweight)","dumbbell":"Dumbbells","barbell":"Barbell","kettlebells":"Kettlebell","bands":"Resistance bands","cable":"Cable machine","machine":"Machine","medicine ball":"Medicine ball"};
+    set("tx-eq", eqMap[String(a[2]).toLowerCase()] || "Other"); set("tx-lv", ["Beginner","Intermediate","Advanced"][a[3]] || "Beginner");
+    set("tx-steps", String(a[6] || "").split(/(?<=[.!?])\s+/).filter(Boolean).join("\n")); set("tx-sets", "3"); set("tx-reps", "10–12");
+    const h = $("#tx-lib-hits"); if (h) h.innerHTML = `<p class="sub">Filled in from the library. Add your own cues and safety notes.</p>`; },
+  "tf-find"(){ tCards = null; tFilter = ""; findSheet(); },
+  "tf-spec"(el){ tFilter = el.dataset.v; findSheet(); },
+  "tf-open"(el){ cardSheet(el.dataset.uid); },
+  async "tf-share"(el){ const c = (tCards || []).find(x => x.uid === el.dataset.uid); if (!c) return; el.disabled = true; if (await shareWith(c, "#sh-err")){ closeSheet(); render(); toast(`${firstN(c.name)} can now see your profile and send you a plan.`); } else el.disabled = false; },
+  "tc-mode"(el){ for (const b of el.parentNode.children) b.setAttribute("aria-pressed", b === el); },
+  "tc-save"(){ tcardSave(); },
+  "co-chat"(el){ chatSheet(el.dataset.cid); },
+  "co-send"(){ chatSend(); },
+  "co-plan"(el){ planSheetOpen(el.dataset.cid); },
+  "co-meal"(el){ cStash(); cMeal = el.dataset.v; planSheet(); },
+  "co-madd"(el){ cStash(); const a = cHits[+el.dataset.i]; if (!a) return; ((cdraft.meals ||= {})[cMeal] ||= []).push({name:a[0], serv:a[1], kcal:a[2], p:a[3], c:a[4], f:a[5], qty:1}); planSheet(); const q = $("#cp-q"); if (q) q.focus(); },
+  "co-mq"(el){ cStash(); const L = cdraft.meals[cMeal], e = L[+el.dataset.i]; if (!e) return; e.qty = Math.round(((e.qty || 1) + +el.dataset.d)*10)/10; if (e.qty <= 0) L.splice(+el.dataset.i, 1); planSheet(); },
+  "co-week"(){ cStash(); peMode = "coach"; pe = JSON.parse(JSON.stringify(cdraft.week || cdraft.baseWeek)); peDay = 0; peSheet(); },
+  "co-week-clear"(){ cStash(); cdraft.week = null; planSheet(); },
+  "co-send-plan"(){ sendPlan(); },
+  "co-notes"(el){ notesSheet(el.dataset.cid); },
+  "co-notes-save"(el){ const S = ownState || state; (S.tnotes ||= {})[el.dataset.cid] = ($("#cn-t").value || "").slice(0, 4000); if (viewing) notesDirty = true; else save(); closeSheet(); toast("Notes saved."); if (!viewing) render(); },
+  "co-apply"(){ applyPlan(); render(); toast("Plan in use. Your targets, meals and week are updated."); },
+  "co-unapply"(){ delete state.myPlan; delete state.coachMeals; delete state.coachNotes; delete state.coachAt; if (state.profile.coach) delete state.profile.coach; save(); render(); toast("Back to your own plan."); },
+  "co-logmeal"(el){ const m = el.dataset.meal, L = (state.coachMeals || {})[m] || []; if (L.length) addMany(L, m, `Logged ${firstN(state.share.name)}'s ${m.toLowerCase()}`); },
   "rc-open"(){ rcp = null; recipeSheet(); },
   "rc-edit"(el){ const r = state.recipes[+el.dataset.i]; if (!r) return; rcp = JSON.parse(JSON.stringify(r)); rcp.edit = +el.dataset.i; recipeSheet(); },
   "rc-add"(el){ rcpStash(); const a = rcpHits[+el.dataset.i]; if (!a) return; rcp.items.push({a:[...a], q:1}); recipeSheet(); const q = $("#rc-q"); if (q) q.focus(); },
@@ -3152,7 +3426,7 @@ document.addEventListener("click", e => {
   const tb = e.target.closest("[data-tab]"); if (tb) return go(tb.dataset.tab);
   if (e.target.id === "sheet") return closeSheet();
   const a = e.target.closest("[data-act]"); if (!a || !actions[a.dataset.act]) return;
-  if (viewing && !RO_OK.has(a.dataset.act)) return;
+  if (viewing && !RO_OK.has(a.dataset.act) && !/^(co-|pe-|tc-)/.test(a.dataset.act)) return;
   // Anonymous count of which feature was used: the action's fixed name only (data/pixora-usage.js).
   if (window.PixoraUsage) PixoraUsage.track("act_" + a.dataset.act.replace(/[^a-z0-9]/gi, "_").toLowerCase().slice(0, 36));
   actions[a.dataset.act](a, e);
@@ -3166,6 +3440,9 @@ document.addEventListener("keydown", e => {
 });
 document.addEventListener("submit", e => { e.preventDefault(); const f = e.target.dataset.form; if (viewing) return; if (forms[f]){ const form = e.target, key = draftKey(form); setTimeout(() => { if (!form.isConnected) draftClear(key); }, 1500); if (window.PixoraUsage && f !== "vault" && f !== "auth" && f !== "del") PixoraUsage.track("form_" + String(f).replace(/[^a-z0-9]/gi, "_").toLowerCase()); forms[f](); } });
 document.addEventListener("input", e => {
+  if (e.target.id === "tx-lib"){ const q = e.target.value.trim().toLowerCase(), db = Array.isArray(window.EXDB) ? window.EXDB : []; window.__txLib = q.length < 2 ? [] : db.filter(x => q.split(/\s+/).every(t => x[0].toLowerCase().includes(t))).slice(0, 8); const h = $("#tx-lib-hits"); if (h) h.innerHTML = window.__txLib.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc((REGIONS[a[1]] || {label:a[1]}).label)} · ${esc(a[2])}</small></div><button type="button" data-act="tx-libpick" data-i="${i}">Use</button></div>`).join(""); return; }
+  if (e.target.id === "cp-q"){ cHits = cSearch(e.target.value); const h = $("#cp-hits"); if (h) h.innerHTML = cHits.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc(a[1])} · ${a[2]} kcal · P ${a[3]}</small></div><button data-act="co-madd" data-i="${i}">Add</button></div>`).join(""); return; }
+  if (e.target.id === "tf-q"){ clearTimeout(window.__tfT); window.__tfT = setTimeout(() => { const v = e.target.value, pos = e.target.selectionStart; findSheet(); const n = $("#tf-q"); if (n){ n.focus(); n.value = v; try { n.setSelectionRange(pos, pos); } catch(x){} } }, 250); return; }
   if (e.target.id === "pe-q"){ peHits = peSearch(e.target.value); const h = $("#pe-hits"); if (h) h.innerHTML = peHits.map((x, i) => `<div class="foodrow"><div><b>${esc(x.n)}</b><small>${esc(x.dose || "")}${x.src ? " · " + esc(x.src) : ""}</small></div><button data-act="pe-add" data-i="${i}">Add</button></div>`).join(""); return; }
   if (e.target.id === "act-min"){ const est = $("#act-est"); if (est) est.textContent = `About ${actKcal(ACTS_MET[actPick][1], +e.target.value || 0)} kcal for you.`; return; }
   if (e.target.id === "rc-q"){ rcpHits = rcpSearch(e.target.value); const h = $("#rc-hits"); if (h) h.innerHTML = rcpHits.map((a, i) => `<div class="foodrow"><div><b>${esc(a[0])}</b><small>${esc(a[1])} · ${a[2]} kcal</small></div><button data-act="rc-add" data-i="${i}">Add</button></div>`).join(""); return; }

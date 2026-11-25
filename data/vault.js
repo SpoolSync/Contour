@@ -138,7 +138,14 @@ async function openShared(keys,box){
   return subtle.importKey("raw",await openBytes(k,box),"AES-GCM",false,["decrypt"]);
 }
 
+/* Trainer side: the same key, usable to write plans and messages the member can open. */
+async function openSharedRW(keys,box){
+  var epk=await subtle.importKey("jwk",{kty:"EC",crv:"P-256",x:box.ex,y:box.ey,ext:true},{name:"ECDH",namedCurve:"P-256"},false,[]);
+  var k=await subtle.deriveKey({name:"ECDH",public:epk},keys.priv,{name:"AES-GCM",length:256},false,["decrypt"]);
+  return subtle.importKey("raw",await openBytes(k,box),"AES-GCM",false,["encrypt","decrypt"]);
+}
+
 root.ContourVault={ok:!!(subtle&&root.indexedDB),create:create,unlock:unlock,refresh:refresh,rotate:rotate,rewrap:rewrap,
   pxOpen:pxOpen,pxNew:pxNew,createPx:createPx,unlockPx:unlockPx,adoptPx:adoptPx,
-  sealJSON:sealJSON,openJSON:openJSON,shareKey:shareKey,openShared:openShared,load:load,keep:keep,forget:forget};
+  sealJSON:sealJSON,openJSON:openJSON,shareKey:shareKey,openShared:openShared,openSharedRW:openSharedRW,load:load,keep:keep,forget:forget};
 })(typeof self!=="undefined"?self:this);
