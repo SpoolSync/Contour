@@ -1,5 +1,5 @@
 // Offline support. Bump VERSION whenever the app files change so phones pick up the new copy.
-const VERSION = "contour-2026-11-24-planpick";
+const VERSION = "contour-2026-11-26-scanphoto";
 const ASSETS = ["./", "index.html", "data/exercises.js", "data/foods.js", "data/cloud.js", "data/pixora-summary.js", "data/pixora-pin.js", "data/vault.js", "data/pixora-usage.js", "data/pixora-feedback.js", "vendor/firebase-app-compat.js", "vendor/firebase-auth-compat.js", "vendor/firebase-firestore-compat.js", "vendor/zxing/zxing-reader.js", "vendor/zxing/zxing_reader.wasm", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-180.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith("contour-") && k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim())); });

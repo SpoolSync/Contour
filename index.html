@@ -1905,7 +1905,7 @@ const geminiFn = {json: async (prompt, o) => {
       const app = A.initializeApp(window.PIXORA_CLOUD, "pixora-ai");
       if (window.PIXORA_CLOUD.recaptchaKey) AC.initializeAppCheck(app, {provider:new AC.ReCaptchaEnterpriseProvider(window.PIXORA_CLOUD.recaptchaKey), isTokenAutoRefreshEnabled:true});
       gemModel = AI.getGenerativeModel(AI.getAI(app, {backend:new AI.GoogleAIBackend()}), {model:window.PIXORA_CLOUD.geminiModel || "gemini-3.5-flash-lite"}); }
-    const parts = [prompt]; for (const f of (o && o.images) || []) parts.push({inlineData:{data:await jpegB64(f, 1280), mimeType:"image/jpeg"}});
+    const parts = [prompt]; for (const f of (o && o.images) || []) parts.push({inlineData:{data:await jpegB64(f, (o && o.maxPx) || 1280), mimeType:"image/jpeg"}});
     const txt = (await gemModel.generateContent(parts)).response.text().replace(/```(?:json)?/g, "").trim(), i = txt.search(/[\[{]/), j = Math.max(txt.lastIndexOf("]"), txt.lastIndexOf("}"));
     if (i < 0 || j < i) throw {code:"invalid_json"};
     return JSON.parse(txt.slice(i, j + 1));
@@ -3012,7 +3012,8 @@ function scanSheet(){
   if (scanMode === "photo") return openSheet(`${head("New scan")}${modeSeg}${photoScanBody()}`);
   if (scanMode === "machine") return openSheet(`${head("New scan")}${modeSeg}
   <p class="sub">Copy the numbers from a body composition machine at your gym, such as an Evolt or InBody printout. Fill in what you have.</p>
-  ${sampleFn && canImages && !STANDALONE ? `<label class="btn alt filebtn">Read them from a photo<input type="file" id="ms-photo" accept="image/jpeg,image/png,image/webp" aria-label="Photo of the scan report"></label><div class="err" id="ms-ai" style="color:var(--muted)"></div>` : ""}
+  ${sampleFn && canImages ? (STANDALONE && CLOUD && !state.scanAiOn ? `<div class="ai"><b>Read the numbers from a photo</b><p class="sub">Take a photo of the printout or the machine's screen and Contour fills in the form for you. The photo is sent to Google's Gemini AI to read the numbers. Google may keep it, so crop out your name or face first if they're on it. Nothing else is sent.</p><button class="btn alt" data-act="msai-on">Turn on and read my scan</button></div>`
+    : `<label class="btn filebtn">Take or upload a photo of the scan<input type="file" id="ms-photo" accept="image/*" aria-label="Photo of the scan report"></label><div class="err" id="ms-ai" style="color:var(--muted)"></div><p class="sub" style="font-size:12px;margin-top:-6px">Lay it flat, fill the frame, no glare. ${STANDALONE && CLOUD ? `Read by Google Gemini. <button class="linkbtn" data-act="msai-off" style="font-size:12px">Turn off</button>` : ""}</p>`) : ""}
   <form data-form="mscan" style="display:flex;flex-direction:column;gap:12px">
     <div class="grid2">${fld("ms-kg","Weight ("+wtU()+")","","required")}${fld("ms-bf","Body fat (%)","",'min="3" max="70" required')}</div>
     <div class="grid2">${fld("ms-smm","Skeletal muscle ("+wtU()+")","")}${fld("ms-vfl","Visceral fat level","",'step="1"')}</div>
@@ -3118,6 +3119,8 @@ const num = id => { const el = $("#"+id); const v = el ? parseFloat(el.value) : 
 const actions = {
   "vault-retry"(){ if (cuser){ vpend = null; access = "checking"; render(); cloudEnter(cuser).then(render); } },
   "vault-forgot"(){ if (!vpend) return; if (!vpend.arm){ vpend.arm = 1; return render(); } vpend.mode = vpend.mode === "pxenter" ? "pxreset" : "reset"; vpend.arm = 0; vmsg = ""; render(); },
+  "msai-on"(){ if (viewing || state.demo) return; state.scanAiOn = 1; save(); scanMode = "machine"; scanSheet(); },
+  "msai-off"(){ state.scanAiOn = 0; save(); scanMode = "machine"; scanSheet(); },
   "ai-on"(){ if (viewing) return; if (state.demo) return needProfile(); state.aiOn = 1; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
   "ai-off"(){ if (viewing) return; state.aiOn = 0; save(); const b = $(".ai"); if (b) b.outerHTML = aiBlock(); },
   close: closeSheet,
@@ -3321,7 +3324,8 @@ async function readScanPhoto(file){
   const out = $("#ms-ai"); if (!sampleFn || !out) return; out.textContent = "Reading the photo…";
   const prompt = 'This photo shows a body composition scan report from a gym machine. Reply with only one JSON object with these keys, using null for anything not visible: {"weightUnit":"lb" or "kg","lengthUnit":"in" or "cm","weight":number,"bodyFatPct":number,"skeletalMuscle":number,"leanMass":number,"fatMass":number,"visceralLevel":number,"visceralArea":number,"waist":number,"whr":number,"bmr":number,"tee":number,"bioAge":number,"score":number,"seg":{"la":{"lean":number,"fat":number,"ls":"under"|"optimal"|"high","fs":"under"|"optimal"|"high"},"ra":{},"torso":{},"ll":{},"rl":{}}} where la, ra, ll, rl are left arm, right arm, left leg, right leg, and ls and fs are the lean and fat status labels shown. Copy numbers exactly as printed.';
   try {
-    const r = await sampleFn.json(prompt, {images:[file]}); if (!r || typeof r !== "object") throw {code:"invalid_json"};
+    const r = await sampleFn.json(prompt, {images:[file], maxPx:2000}); if (!r || typeof r !== "object") throw {code:"invalid_json"};
+    if (r.weight == null && r.bodyFatPct == null) throw {code:"noscan"};
     const lb = r.weightUnit === "lb", W = v => v == null || !isFinite(+v) ? null : (lb ? +v/2.20462 : +v), Lc = v => v == null || !isFinite(+v) ? null : (r.lengthUnit === "in" ? +v*2.54 : +v);
     const put = (id, v) => { const el = $("#"+id); if (el && v != null && isFinite(v)) el.value = r1(v); };
     put("ms-kg", W(r.weight) == null ? null : +showWt(W(r.weight))); put("ms-bf", +r.bodyFatPct || null); put("ms-smm", W(r.skeletalMuscle) == null ? null : +showWt(W(r.skeletalMuscle)));
@@ -3329,7 +3333,7 @@ async function readScanPhoto(file){
     msSeg = {lean:W(r.leanMass), fat:W(r.fatMass), vfa:+r.visceralArea || null, bioAge:+r.bioAge || null, score:+r.score || null, seg:null};
     if (r.seg && typeof r.seg === "object"){ msSeg.seg = {}; for (const [k] of SEG){ const g = r.seg[k]; if (g && W(g.lean) != null && W(g.fat) != null) msSeg.seg[k] = {lean:W(g.lean), fat:W(g.fat), ls:g.ls, fs:g.fs}; } }
     out.textContent = "Filled in from the photo. Check each number against the screen before saving.";
-  } catch(e){ out.textContent = AI_COPY[e && e.code] || "The photo could not be read. Type the numbers in instead."; }
+  } catch(e){ out.textContent = e && e.code === "noscan" ? "No scan numbers found in that photo. Try again closer and without glare, or type them in." : AI_COPY[e && e.code] || "The photo could not be read. Type the numbers in instead."; }
 }
 const forms = {
   act(){ const min = parseInt(($("#act-min") || {}).value); if (!(min > 0 && min <= 600)) return; const [n, met] = ACTS_MET[actPick];
